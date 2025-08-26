@@ -512,6 +512,26 @@
             color: #b45309;
         }
 
+        .status-syncing {
+            background: #e0f2fe;
+            color: #0369a1;
+            animation: pulse 2s infinite;
+        }
+
+        .status-error {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
         .content-wrapper {
             flex: 1;
             display: flex;
@@ -1194,6 +1214,7 @@
                 <button class="user-action-btn" onclick="signOut()">Logga ut</button>
             </div>
         </div>
+    <div class="app-container">
         <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
@@ -2262,13 +2283,57 @@
             }
         }
 
-        // Storage functions
+        // Storage functions with auto-sync
         async function saveTasksToStorage() {
-            if (useSupabase) {
-                await saveTasksToSupabase();
-            } else {
-                saveTasksToLocal();
+            // Always save to localStorage first (immediate backup)
+            saveTasksToLocal();
+            
+            if (useSupabase && currentUser) {
+                try {
+                    await saveTasksToSupabase();
+                    console.log('📤 Data synced to Supabase');
+                } catch (error) {
+                    console.warn('⚠️ Supabase sync failed, data saved locally:', error.message);
+                    // Schedule retry
+                    scheduleRetrySync();
+                }
             }
+        }
+
+        let retryTimeout = null;
+        let retryCount = 0;
+        const maxRetries = 5;
+
+        function scheduleRetrySync() {
+            if (retryTimeout || retryCount >= maxRetries) return;
+            
+            const delay = Math.min(1000 * Math.pow(2, retryCount), 30000); // Exponential backoff, max 30s
+            retryCount++;
+            
+            console.log(`🔄 Scheduling sync retry ${retryCount}/${maxRetries} in ${delay}ms`);
+            
+            retryTimeout = setTimeout(async () => {
+                retryTimeout = null;
+                
+                if (useSupabase && currentUser) {
+                    try {
+                        await saveTasksToSupabase();
+                        console.log('✅ Retry sync successful!');
+                        retryCount = 0; // Reset on success
+                    } catch (error) {
+                        console.warn('⚠️ Retry sync failed:', error.message);
+                        scheduleRetrySync(); // Schedule next retry
+                    }
+                }
+            }, delay);
+        }
+
+        function resetRetrySync() {
+            if (retryTimeout) {
+                clearTimeout(retryTimeout);
+                retryTimeout = null;
+            }
+            retryCount = 0;
         }
 
         function saveTasksToLocal() {
@@ -2287,37 +2352,56 @@
             }
         }
 
+        // Enhanced sync with user feedback
+        function showSyncStatus(message, type = 'info') {
+            const statusElement = document.getElementById('connectionStatus');
+            const originalText = statusElement.textContent;
+            const originalClass = statusElement.className;
+            
+            // Show sync message
+            statusElement.textContent = message;
+            statusElement.className = `connection-status status-${type}`;
+            
+            // Revert after 3 seconds
+            setTimeout(() => {
+                statusElement.textContent = originalText;
+                statusElement.className = originalClass;
+            }, 3000);
+        }
+
         async function saveTasksToSupabase() {
-            if (!supabaseClient || !currentUser) return;
+            if (!supabaseClient || !currentUser) {
+                throw new Error('Supabase client or user not available');
+            }
             
             try {
+                // Show syncing status
+                showSyncStatus('🔄 Synkroniserar...', 'syncing');
+                
                 // Add user_id to all tasks
                 const tasksWithUserId = tasks.map(task => ({
                     ...task,
                     user_id: currentUser.id
                 }));
 
-                // Delete existing user tasks and insert new ones
-                const { error: deleteError } = await supabaseClient
+                // Upsert tasks (insert or update)
+                const { error } = await supabaseClient
                     .from('tasks')
-                    .delete()
-                    .eq('user_id', currentUser.id);
+                    .upsert(tasksWithUserId, {
+                        onConflict: 'id',
+                        ignoreDuplicates: false
+                    });
                 
-                if (deleteError) throw deleteError;
+                if (error) throw error;
 
-                if (tasksWithUserId.length > 0) {
-                    const { error: insertError } = await supabaseClient
-                        .from('tasks')
-                        .insert(tasksWithUserId);
-                    
-                    if (insertError) throw insertError;
-                }
-
-                console.log('Tasks saved to Supabase successfully');
+                console.log('📤 Tasks saved to Supabase successfully');
+                showSyncStatus('✅ Synkroniserat!', 'supabase');
+                resetRetrySync(); // Reset retry counter on success
+                
             } catch (error) {
-                console.error('Error saving to Supabase:', error);
-                // Fall back to localStorage
-                saveTasksToLocal();
+                console.error('💥 Error saving to Supabase:', error);
+                showSyncStatus('❌ Synkronisering misslyckades', 'error');
+                throw error; // Re-throw to trigger retry
             }
         }
 
@@ -2365,13 +2449,26 @@
         }
 
         async function syncFromSupabase() {
-            if (useSupabase) {
-                await loadTasksFromSupabase();
-                renderTasks();
-                updateStats();
+            if (!useSupabase || !supabaseClient) {
+                alert('Supabase inte tillgängligt. Kör appen på GitHub Pages för molnsynkronisering.');
+                return;
+            }
+            
+            if (!currentUser) {
+                alert('Du måste vara inloggad för att synka från molnet.');
+                showLogin();
+                return;
+            }
+            
+            try {
+                showSyncStatus('🔄 Hämtar data från molnet...', 'syncing');
+                await loadUserData();
+                showSyncStatus('✅ Data synkroniserad!', 'supabase');
                 alert('Data synkroniserad från Supabase!');
-            } else {
-                alert('Supabase inte tillgängligt. Kör appen lokalt för att använda molnsynkronisering.');
+            } catch (error) {
+                console.error('Sync error:', error);
+                showSyncStatus('❌ Synkronisering misslyckades', 'error');
+                alert('Synkronisering misslyckades: ' + error.message);
             }
         }
 
@@ -2491,8 +2588,33 @@
             loadSidebarState();
             setupDragAndDrop();
             setupKeyboardEvents();
+            setupOfflineDetection();
             initApp();
         });
+
+        // Setup offline/online detection
+        function setupOfflineDetection() {
+            window.addEventListener('online', async () => {
+                console.log('🌐 Network connection restored');
+                showSyncStatus('🌐 Online - synkroniserar...', 'syncing');
+                
+                if (useSupabase && currentUser) {
+                    // Try to sync when coming back online
+                    try {
+                        await saveTasksToSupabase();
+                    } catch (error) {
+                        console.warn('Failed to sync after coming online:', error);
+                        scheduleRetrySync();
+                    }
+                }
+            });
+
+            window.addEventListener('offline', () => {
+                console.log('📱 Network connection lost');
+                showSyncStatus('📱 Offline - sparar lokalt', 'local');
+                resetRetrySync(); // Stop retries when offline
+            });
+        }
 
         // Setup keyboard events
         function setupKeyboardEvents() {
