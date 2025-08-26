@@ -1437,7 +1437,7 @@
             try {
                 supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 
-                // Listen for auth changes
+                // Listen for auth changes (v1 syntax)
                 supabaseClient.auth.onAuthStateChange((event, session) => {
                     handleAuthStateChange(event, session);
                 });
@@ -1515,14 +1515,14 @@
             }
 
             try {
-                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                const { user, error } = await supabaseClient.auth.signIn({
                     email: email,
                     password: password
                 });
 
                 if (error) throw error;
                 
-                console.log('Signed in successfully:', data);
+                console.log('Signed in successfully:', user);
                 // handleAuthStateChange will handle the UI updates
                 
             } catch (error) {
@@ -1551,14 +1551,14 @@
             }
 
             try {
-                const { data, error } = await supabaseClient.auth.signUp({
+                const { user, error } = await supabaseClient.auth.signUp({
                     email: email,
                     password: password
                 });
 
                 if (error) throw error;
                 
-                console.log('Signed up successfully:', data);
+                console.log('Signed up successfully:', user);
                 alert('Konto skapat! Kolla din email för att bekräfta kontot.');
                 
             } catch (error) {
@@ -1574,11 +1574,8 @@
             }
 
             try {
-                const { data, error } = await supabaseClient.auth.signInWithOAuth({
-                    provider: 'google',
-                    options: {
-                        redirectTo: window.location.origin + window.location.pathname
-                    }
+                const { error } = await supabaseClient.auth.signIn({
+                    provider: 'google'
                 });
 
                 if (error) throw error;
@@ -1729,25 +1726,32 @@
             console.log('Using Supabase:', useSupabase);
             
             if (useSupabase && supabaseClient) {
-                // Check if user is already signed in
-                const { data: { session } } = await supabaseClient.auth.getSession();
-                
-                if (session && session.user) {
-                    currentUser = session.user;
-                    showUserInterface();
-                    await loadUserData();
-                } else {
-                    showLoginInterface();
-                    // Show login modal for new users
-                    setTimeout(() => {
-                        const hasVisited = localStorage.getItem('agoodapp_has_visited');
-                        if (!hasVisited) {
-                            showLogin();
-                            localStorage.setItem('agoodapp_has_visited', 'true');
-                        }
-                    }, 1000);
+                try {
+                    // Check if user is already signed in (v1 syntax)
+                    const session = supabaseClient.auth.session();
                     
-                    // Load local data as fallback
+                    if (session && session.user) {
+                        currentUser = session.user;
+                        showUserInterface();
+                        await loadUserData();
+                    } else {
+                        showLoginInterface();
+                        // Show login modal for new users
+                        setTimeout(() => {
+                            const hasVisited = localStorage.getItem('agoodapp_has_visited');
+                            if (!hasVisited) {
+                                showLogin();
+                                localStorage.setItem('agoodapp_has_visited', 'true');
+                            }
+                        }, 1000);
+                        
+                        // Load local data as fallback
+                        loadTasksFromLocal();
+                        loadProjectsFromLocal();
+                    }
+                } catch (error) {
+                    console.warn('Auth session check failed:', error);
+                    showLoginInterface();
                     loadTasksFromLocal();
                     loadProjectsFromLocal();
                 }
