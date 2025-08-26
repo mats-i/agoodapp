@@ -1098,35 +1098,7 @@
             border-color: #e2e8f0;
         }
 
-        /* Statistics */
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            padding: 20px 30px;
-            background: #fafafa;
-            border-bottom: 1px solid #e5e5e7;
-        }
 
-        .stat-card {
-            background: white;
-            padding: 16px;
-            border-radius: 8px;
-            border: 1px solid #e5e5e7;
-        }
-
-        .stat-number {
-            font-size: 24px;
-            font-weight: 700;
-            color: #007aff;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
 
         /* Responsive */
         @media (max-width: 768px) {
@@ -1320,25 +1292,7 @@
                         </div>
                     </div>
 
-                    <!-- Statistics -->
-                    <div class="stats">
-                        <div class="stat-card">
-                            <div class="stat-number" id="totalTasks">0</div>
-                            <div class="stat-label">Totalt antal</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="todoCount">0</div>
-                            <div class="stat-label">Todos</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="noteCount">0</div>
-                            <div class="stat-label">Anteckningar</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="overdueCount">0</div>
-                            <div class="stat-label">Försenade</div>
-                        </div>
-                    </div>
+
 
                     <!-- Task list (Outline view) -->
                     <div class="task-list" id="taskList">
@@ -1474,7 +1428,7 @@
         let currentUser = null; // Current logged in user
 
         // Supabase configuration
-        const SUPABASE_URL = 'https://tazwiywtzmyqbmmkhpc.supabase.co';
+        const SUPABASE_URL = 'https://tazwiywfzpmyqbmmkhpc.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhendpeXdmenBteXFibW1raHBjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxOTg2NzMsImV4cCI6MjA3MTc3NDY3M30.GwC80boqAj4Z78qt3BIG-iau1QJuZiFe058vWtFBCxg';
 
         // Initialize Supabase
@@ -2247,21 +2201,7 @@
         }
 
         function updateStats() {
-            const filteredTasks = currentProject === 'all' ? tasks : tasks.filter(t => t.project === currentProject);
-            
-            const todos = filteredTasks.filter(task => task.type === 'todo');
-            const notes = filteredTasks.filter(task => task.type === 'note');
-            const overdue = todos.filter(task => {
-                if (!task.deadline) return false;
-                return new Date(task.deadline) < new Date();
-            });
-
-            document.getElementById('totalTasks').textContent = filteredTasks.length;
-            document.getElementById('todoCount').textContent = todos.length;
-            document.getElementById('noteCount').textContent = notes.length;
-            document.getElementById('overdueCount').textContent = overdue.length;
-            
-            // Update settings info if in settings view
+            // Only update settings info if in settings view
             if (currentView === 'settings') {
                 updateSettingsInfo();
             }
