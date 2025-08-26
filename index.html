@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task & Notes Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        // Export/Import functions (updated for Supabase)
+        async function exportData() {
+            const allTasks = flattenTasks(tasks);
+            const data = {
+                tasks: allTasks,
+                taskIdCounter: taskIdCounter,
+                exportDate: new Date().toISOString(),
+                source: 'supabase'
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `task-manager-backup-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+        }
+
+        async function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (!confirm('Detta kommer att ersätta all din nuvarande data. Är du säker?')) {
+                        return;
+                    }
+
+                    // Clear existing data
+                    await clearAllData(false);
+                    
+                    // Import new data
+                    const importTasks = data.tasks || [];
+                    for (const task of importTasks) {
+                        await saveTaskToSupabase(task);
+                    }
+                    
+                    taskIdCounter = data.taskIdCounter || 1;
+                    await loadTasksFromSupabase();
+                    renderTasks();
+                    updateStats();
+                    updateParentTaskOptions();
+                    alert('Data importerad framgångsrikt!');
+                } catch (error) {
+                    alert('Fel vid import av data: ' + error.message);
+                    console.error('Import error:', error);
+                }
+            };
+            reader.readAsText(file);
+            
+            event.target.value = '';
+        }
+
+        async function clearAllData(confirm = true) {
+            if (confirm && !window.confirm('Är du säker på att du vill radera ALL data? Detta går inte att ångra!')) {
+                return;
+            }
+            
+            try {
+                // Delete all tasks from Supabase
+                const { error } = await supabaseClient
+                    .from('tasks')
+                    .delete()
+                    .neq('id', 0); // Delete all rows
+                
+                if (error) throw error;
+                
+                tasks = [];
+                taskIdCounter = 1;
+                renderTasks();
+                updateStats();
+                updateParentTaskOptions();
+                
+                if (confirm) {
+                    alert('All data har raderats.');
+                }
+            } catch (error) {
+                console.error('Error clearing data:', error);
+                alert('Fel vid rensning av data: ' + error.message);
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .content {
+            padding: 24px;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 24px;
+        }
+
+        .tab {
+            background: none;
+            border: none;
+            padding: 12px 24px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #64748b;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: #374151;
+            background: #f8fafc;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: #f8fafc;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .add-task-form {
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+            border: 2px dashed #cbd5e1;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .switch-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #94a3b8;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #667eea;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .switch-labels {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .add-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .add-btn:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+
+        .tasks-container {
+            min-height: 400px;
+        }
+
+        .task-item {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+            cursor: grab;
+            position: relative;
+        }
+
+        .task-item:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .task-item.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+            cursor: grabbing;
+            z-index: 1000;
+        }
+
+        .task-item.drag-over {
+            border-color: #667eea;
+            border-width: 2px;
+            background: #f8fafc;
+        }
+
+        .task-content {
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .drag-handle {
+            color: #94a3b8;
+            cursor: grab;
+            font-size: 18px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .drag-handle:hover {
+            color: #64748b;
+        }
+
+        .task-toggle {
+            width: 16px;
+            height: 16px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 12px;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .task-info {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .task-title {
+            font-weight: 600;
+            color: #1e293b;
+            flex: 2;
+            min-width: 200px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .task-type-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .type-todo {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .type-note {
+            background: #f3e8ff;
+            color: #7c3aed;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .priority-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .priority-high {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .priority-medium {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .priority-low {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        .assignee {
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .deadline {
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .deadline.overdue {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            background: none;
+            border: 1px solid #e2e8f0;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .action-btn:hover {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+        }
+
+        .subtasks {
+            margin-left: 40px;
+            border-left: 2px solid #f1f5f9;
+            padding-left: 16px;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #64748b;
+            padding: 60px 20px;
+            font-style: italic;
+        }
+
+        .stats {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .stat-label {
+            color: #64748b;
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        /* Calendar View Styles */
+        .calendar-container {
+            display: grid;
+            gap: 24px;
+        }
+
+        .calendar-section {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .calendar-section h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .calendar-task {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .calendar-task:last-child {
+            margin-bottom: 0;
+        }
+
+        .calendar-task-info {
+            flex: 1;
+        }
+
+        .calendar-task-title {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .calendar-task-meta {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .overdue-section {
+            border-left: 4px solid #dc2626;
+        }
+
+        .today-section {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .upcoming-section {
+            border-left: 4px solid #059669;
+        }
+
+        .no-deadline-section {
+            border-left: 4px solid #6b7280;
+        }
+
+        .drop-zone {
+            min-height: 40px;
+            border: 2px dashed #cbd5e1;
+            border-radius: 6px;
+            margin: 4px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            font-size: 14px;
+            opacity: 0;
+            transition: all 0.2s;
+        }
+
+        .drop-zone.active {
+            opacity: 1;
+            border-color: #667eea;
+            background: #f8fafc;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Task & Notes Manager</h1>
+            <p>Organisera dina uppgifter och anteckningar med hierarkisk struktur</p>
+        </div>
+        
+        <div class="content">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('outline')">📝 Outline</button>
+                <button class="tab" onclick="switchTab('calendar')">📅 Kalender</button>
+            </div>
+
+            <!-- Outline Tab -->
+            <div id="outline-tab" class="tab-content active">
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-tasks">0</div>
+                        <div class="stat-label">Totalt</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="todos-count">0</div>
+                        <div class="stat-label">Todos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="notes-count">0</div>
+                        <div class="stat-label">Anteckningar</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="overdue-tasks">0</div>
+                        <div class="stat-label">Försenade</div>
+                    </div>
+                </div>
+
+                <div class="add-task-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="task-title">Titel</label>
+                            <input type="text" id="task-title" placeholder="Skriv titel..." required>
+                        </div>
+                        <div class="form-group">
+                            <label>Typ</label>
+                            <div class="switch-container">
+                                <div class="switch-labels">
+                                    <span>📝 Anteckning</span>
+                                    <label class="switch">
+                                        <input type="checkbox" id="item-type" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                    <span>✅ Todo</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="task-priority">Prioritet</label>
+                            <select id="task-priority">
+                                <option value="low">Låg</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">Hög</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="task-assignee">Ansvarig</label>
+                            <input type="text" id="task-assignee" placeholder="Vem ansvarar?">
+                        </div>
+                        <div class="form-group">
+                            <label for="task-deadline">Deadline</label>
+                            <input type="date" id="task-deadline">
+                        </div>
+                        <div class="form-group">
+                            <label for="parent-task">Föräldrauppgift</label>
+                            <select id="parent-task">
+                                <option value="">Ingen (huvuduppgift)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <button class="add-btn" onclick="addTask()">➕ Lägg till</button>
+                    <div style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
+                        <button class="add-btn" onclick="exportData()" style="background: #059669;">💾 Exportera data</button>
+                        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData(event)">
+                        <button class="add-btn" onclick="document.getElementById('importFile').click()" style="background: #dc2626;">📥 Importera data</button>
+                        <button class="add-btn" onclick="clearAllData()" style="background: #6b7280;">🗑️ Rensa allt</button>
+                    </div>
+                </div>
+                
+                <div class="tasks-container" id="tasks-container">
+                    <div class="empty-state">
+                        Inga uppgifter ännu. Lägg till din första uppgift ovan! 🚀
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendar Tab -->
+            <div id="calendar-tab" class="tab-content">
+                <div class="calendar-container" id="calendar-container">
+                    <div class="empty-state">
+                        Inga uppgifter med deadlines att visa än! 📅
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@1.35.7/dist/umd/supabase.min.js"></script>
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://tazwiywtzmyqbmmkhpc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhendpeXdmenBteXFibW1raHBjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxOTg2NzMsImV4cCI6MjA3MTc3NDY3M30.GwC80boqAj4Z78qt3BIG-iau1QJuZiFe058vWtFBCxg';
+        
+        let supabaseClient = null;
+        let useSupabase = false;
+
+        // Try to initialize Supabase, fallback to localStorage
+        try {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('Supabase client initialized');
+        } catch (error) {
+            console.log('Supabase not available, using localStorage');
+        }
+
+        let tasks = [];
+        let taskIdCounter = 1;
+        let currentTab = 'outline';
+        let draggedElement = null;
+        let draggedTask = null;
+
+        // Test Supabase connection
+        async function testSupabaseConnection() {
+            if (!supabaseClient) return false;
+            
+            try {
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .select('count', { count: 'exact', head: true });
+                
+                if (error) {
+                    console.log('Supabase connection failed:', error.message);
+                    return false;
+                }
+                
+                console.log('Supabase connection successful');
+                return true;
+            } catch (error) {
+                console.log('Supabase connection test failed:', error.message);
+                return false;
+            }
+        }
+
+        // localStorage functions (backup)
+        function saveToLocalStorage() {
+            const data = {
+                tasks: tasks,
+                taskIdCounter: taskIdCounter,
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem('taskManager', JSON.stringify(data));
+            console.log('Saved to localStorage');
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('taskManager');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    tasks = data.tasks || [];
+                    taskIdCounter = data.taskIdCounter || 1;
+                    console.log('Loaded from localStorage:', tasks.length, 'tasks');
+                    return true;
+                } catch (e) {
+                    console.error('Error loading from localStorage:', e);
+                    tasks = [];
+                    taskIdCounter = 1;
+                }
+            }
+            return false;
+        }
+
+        // Supabase functions
+        async function loadTasksFromSupabase() {
+            if (!useSupabase || !supabaseClient) {
+                return loadFromLocalStorage();
+            }
+
+            try {
+                console.log('Loading tasks from Supabase...');
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .select('*')
+                    .order('created_at', { ascending: true });
+                
+                if (error) {
+                    console.error('Supabase error, falling back to localStorage:', error.message);
+                    useSupabase = false;
+                    return loadFromLocalStorage();
+                }
+                
+                console.log('Raw data from Supabase:', data);
+                
+                // Transform Supabase data to our format
+                tasks = buildTaskHierarchy(data || []);
+                
+                // Set counter to highest ID + 1
+                const maxId = data?.reduce((max, task) => Math.max(max, task.id || 0), 0) || 0;
+                taskIdCounter = maxId + 1;
+                
+                console.log('Tasks loaded successfully from Supabase:', tasks.length, 'tasks');
+                return true;
+            } catch (error) {
+                console.error('Supabase connection failed, using localStorage:', error.message);
+                useSupabase = false;
+                return loadFromLocalStorage();
+            }
+        }
+
+        function buildTaskHierarchy(flatTasks) {
+            const taskMap = {};
+            const rootTasks = [];
+            
+            // Create task map
+            flatTasks.forEach(task => {
+                taskMap[task.id] = {
+                    ...task,
+                    subtasks: [],
+                    parentId: task.parent_id
+                };
+            });
+            
+            // Build hierarchy
+            flatTasks.forEach(task => {
+                if (task.parent_id && taskMap[task.parent_id]) {
+                    taskMap[task.parent_id].subtasks.push(taskMap[task.id]);
+                } else {
+                    rootTasks.push(taskMap[task.id]);
+                }
+            });
+            
+            return rootTasks;
+        }
+
+        function flattenTasks(taskList, parentId = null) {
+            const flattened = [];
+            
+            taskList.forEach(task => {
+                flattened.push({
+                    id: task.id,
+                    title: task.title,
+                    type: task.type,
+                    priority: task.priority,
+                    assignee: task.assignee,
+                    deadline: task.deadline,
+                    parent_id: parentId,
+                    collapsed: task.collapsed || false,
+                    created_at: task.created_at
+                });
+                
+                if (task.subtasks && task.subtasks.length > 0) {
+                    flattened.push(...flattenTasks(task.subtasks, task.id));
+                }
+            });
+            
+            return flattened;
+        }
+
+        async function saveTaskToSupabase(task, isUpdate = false) {
+            if (!useSupabase || !supabaseClient) {
+                saveToLocalStorage();
+                return;
+            }
+
+            try {
+                const taskData = {
+                    title: task.title,
+                    type: task.type,
+                    priority: task.priority,
+                    assignee: task.assignee,
+                    deadline: task.deadline,
+                    parent_id: task.parentId,
+                    collapsed: task.collapsed || false
+                };
+
+                if (isUpdate) {
+                    const { error } = await supabaseClient
+                        .from('tasks')
+                        .update(taskData)
+                        .eq('id', task.id);
+                    
+                    if (error) throw error;
+                } else {
+                    taskData.id = task.id;
+                    const { error } = await supabaseClient
+                        .from('tasks')
+                        .insert([taskData]);
+                    
+                    if (error) throw error;
+                }
+                
+                console.log('Task saved to Supabase');
+            } catch (error) {
+                console.error('Error saving to Supabase, falling back to localStorage:', error.message);
+                useSupabase = false;
+                saveToLocalStorage();
+            }
+        }
+
+        async function deleteTaskFromSupabase(taskId) {
+            if (!useSupabase || !supabaseClient) {
+                saveToLocalStorage();
+                return;
+            }
+
+            try {
+                // First delete all subtasks recursively
+                const task = findTaskById(taskId);
+                if (task && task.subtasks) {
+                    for (const subtask of task.subtasks) {
+                        await deleteTaskFromSupabase(subtask.id);
+                    }
+                }
+                
+                const { error } = await supabaseClient
+                    .from('tasks')
+                    .delete()
+                    .eq('id', taskId);
+                
+                if (error) throw error;
+                console.log('Task deleted from Supabase');
+            } catch (error) {
+                console.error('Error deleting from Supabase, using localStorage:', error.message);
+                useSupabase = false;
+                saveToLocalStorage();
+            }
+        }
+
+        function generateId() {
+            return taskIdCounter++;
+        }
+
+        function switchTab(tabName) {
+            currentTab = tabName;
+            
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelector(`.tab:nth-child(${tabName === 'outline' ? 1 : 2})`).classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            if (tabName === 'calendar') {
+                renderCalendar();
+            }
+        }
+
+        async function addTask() {
+            const title = document.getElementById('task-title').value.trim();
+            const isNote = !document.getElementById('item-type').checked;
+            const priority = document.getElementById('task-priority').value;
+            const assignee = document.getElementById('task-assignee').value.trim();
+            const deadline = document.getElementById('task-deadline').value;
+            const parentId = document.getElementById('parent-task').value;
+
+            if (!title) {
+                alert('Vänligen ange en titel');
+                return;
+            }
+
+            const task = {
+                id: taskIdCounter++,
+                title,
+                type: isNote ? 'note' : 'todo',
+                priority,
+                assignee,
+                deadline,
+                parentId: parentId ? parseInt(parentId) : null,
+                subtasks: [],
+                collapsed: false,
+                created_at: new Date().toISOString()
+            };
+
+            try {
+                await saveTaskToSupabase(task);
+
+                if (task.parentId) {
+                    const parent = findTaskById(task.parentId);
+                    if (parent) {
+                        parent.subtasks.push(task);
+                    }
+                } else {
+                    tasks.push(task);
+                }
+
+                // Rensa formuläret
+                document.getElementById('task-title').value = '';
+                document.getElementById('task-assignee').value = '';
+                document.getElementById('task-deadline').value = '';
+                document.getElementById('parent-task').value = '';
+                document.getElementById('item-type').checked = true;
+
+                updateParentTaskOptions();
+                renderTasks();
+                updateStats();
+            } catch (error) {
+                // Error already handled in saveTaskToSupabase
+            }
+        }
+
+        function findTaskById(id) {
+            function search(taskList) {
+                for (let task of taskList) {
+                    if (task.id === id) return task;
+                    const found = search(task.subtasks);
+                    if (found) return found;
+                }
+                return null;
+            }
+            return search(tasks);
+        }
+
+        function getAllTasks() {
+            const allTasks = [];
+            function collect(taskList) {
+                for (let task of taskList) {
+                    allTasks.push(task);
+                    collect(task.subtasks);
+                }
+            }
+            collect(tasks);
+            return allTasks;
+        }
+
+        async function deleteTask(id) {
+            if (!confirm('Är du säker på att du vill ta bort denna uppgift?')) {
+                return;
+            }
+
+            try {
+                await deleteTaskFromSupabase(id);
+                
+                function removeFromArray(taskList) {
+                    for (let i = 0; i < taskList.length; i++) {
+                        if (taskList[i].id === id) {
+                            taskList.splice(i, 1);
+                            return true;
+                        }
+                        if (removeFromArray(taskList[i].subtasks)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                
+                removeFromArray(tasks);
+                updateParentTaskOptions();
+                renderTasks();
+                updateStats();
+            } catch (error) {
+                // Error already handled in deleteTaskFromSupabase
+            }
+        }
+
+        function toggleSubtasks(id) {
+            const task = findTaskById(id);
+            if (task) {
+                task.collapsed = !task.collapsed;
+                renderTasks();
+            }
+        }
+
+        function addSubtask(parentId) {
+            document.getElementById('parent-task').value = parentId;
+            document.getElementById('task-title').focus();
+        }
+
+        function formatDeadline(deadline) {
+            if (!deadline) return '';
+            
+            const date = new Date(deadline);
+            const today = new Date();
+            const diffDays = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
+            
+            const dateStr = date.toLocaleDateString('sv-SE');
+            
+            if (diffDays < 0) {
+                return `<span class="deadline overdue">${dateStr} (${Math.abs(diffDays)} dagar sen)</span>`;
+            } else if (diffDays === 0) {
+                return `<span class="deadline overdue">${dateStr} (idag)</span>`;
+            } else if (diffDays <= 3) {
+                return `<span class="deadline">${dateStr} (${diffDays} dagar kvar)</span>`;
+            }
+            
+            return `<span class="deadline">${dateStr}</span>`;
+        }
+
+        // Drag and Drop Functions
+        function handleDragStart(e, task) {
+            draggedElement = e.target.closest('.task-item');
+            draggedTask = task;
+            draggedElement.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            
+            // Create drop zones
+            createDropZones();
+        }
+
+        function handleDragEnd(e) {
+            if (draggedElement) {
+                draggedElement.classList.remove('dragging');
+            }
+            removeDropZones();
+            draggedElement = null;
+            draggedTask = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        async function handleDrop(e, targetTask, position = 'after') {
+            e.preventDefault();
+            
+            if (!draggedTask || draggedTask.id === targetTask.id) return;
+            
+            try {
+                // Remove dragged task from its current position
+                removeTaskFromParent(draggedTask.id);
+                
+                // Find target parent and insert at correct position
+                if (targetTask.parentId) {
+                    const targetParent = findTaskById(targetTask.parentId);
+                    const targetIndex = targetParent.subtasks.findIndex(t => t.id === targetTask.id);
+                    const insertIndex = position === 'before' ? targetIndex : targetIndex + 1;
+                    
+                    draggedTask.parentId = targetTask.parentId;
+                    targetParent.subtasks.splice(insertIndex, 0, draggedTask);
+                } else {
+                    const targetIndex = tasks.findIndex(t => t.id === targetTask.id);
+                    const insertIndex = position === 'before' ? targetIndex : targetIndex + 1;
+                    
+                    draggedTask.parentId = null;
+                    tasks.splice(insertIndex, 0, draggedTask);
+                }
+                
+                // Update task in Supabase
+                await saveTaskToSupabase(draggedTask, true);
+                
+                renderTasks();
+                updateParentTaskOptions();
+            } catch (error) {
+                // Reload tasks if there was an error
+                await loadTasksFromSupabase();
+                renderTasks();
+                updateParentTaskOptions();
+                updateStats();
+            }
+        }
+
+        function removeTaskFromParent(taskId) {
+            function removeFromArray(taskList) {
+                for (let i = 0; i < taskList.length; i++) {
+                    if (taskList[i].id === taskId) {
+                        taskList.splice(i, 1);
+                        return true;
+                    }
+                    if (removeFromArray(taskList[i].subtasks)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            removeFromArray(tasks);
+        }
+
+        function createDropZones() {
+            // This would create visual drop zones, simplified for now
+        }
+
+        function removeDropZones() {
+            // Remove visual drop zones
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('tasks-container');
+            
+            if (tasks.length === 0) {
+                container.innerHTML = '<div class="empty-state">Inga uppgifter ännu. Lägg till din första uppgift ovan! 🚀</div>';
+                return;
+            }
+
+            function renderTaskList(taskList, level = 0) {
+                return taskList.map(task => {
+                    const hasSubtasks = task.subtasks.length > 0;
+                    const indentStyle = level > 0 ? `margin-left: ${level * 40}px; border-left: 2px solid #f1f5f9; padding-left: 16px;` : '';
+                    
+                    return `
+                        <div class="task-item" style="${indentStyle}" draggable="true" 
+                             ondragstart="handleDragStart(event, ${JSON.stringify(task).replace(/"/g, '&quot;')})"
+                             ondragend="handleDragEnd(event)"
+                             ondragover="handleDragOver(event)"
+                             ondrop="handleDrop(event, ${JSON.stringify(task).replace(/"/g, '&quot;')})">
+                            <div class="task-content">
+                                <div class="drag-handle">⋮⋮</div>
+                                
+                                ${hasSubtasks ? 
+                                    `<button class="task-toggle" onclick="toggleSubtasks(${task.id})">
+                                        ${task.collapsed ? '▶' : '▼'}
+                                    </button>` : 
+                                    '<div style="width: 16px;"></div>'
+                                }
+                                
+                                <div class="task-info">
+                                    <div class="task-title">
+                                        <div class="task-type-indicator ${task.type === 'todo' ? 'type-todo' : 'type-note'}">
+                                            ${task.type === 'todo' ? '✓' : '📝'}
+                                        </div>
+                                        ${task.title}
+                                    </div>
+                                    <div class="task-meta">
+                                        <span class="priority-badge priority-${task.priority}">${task.priority}</span>
+                                        ${task.assignee ? `<span class="assignee">${task.assignee}</span>` : ''}
+                                        ${formatDeadline(task.deadline)}
+                                    </div>
+                                </div>
+                                
+                                <div class="task-actions">
+                                    <button class="action-btn" onclick="addSubtask(${task.id})" title="Lägg till underuppgift">➕</button>
+                                    <button class="action-btn" onclick="deleteTask(${task.id})" title="Ta bort">🗑️</button>
+                                </div>
+                            </div>
+                        </div>
+                        ${hasSubtasks && !task.collapsed ? renderTaskList(task.subtasks, level + 1) : ''}
+                    `;
+                }).join('');
+            }
+
+            container.innerHTML = renderTaskList(tasks);
+        }
+
+        function renderCalendar() {
+            const container = document.getElementById('calendar-container');
+            const allTasks = getAllTasks().filter(task => task.type === 'todo'); // Only show todos in calendar
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Group tasks by date categories
+            const overdue = [];
+            const todayTasks = [];
+            const upcoming = [];
+            const noDeadline = [];
+
+            allTasks.forEach(task => {
+                if (!task.deadline) {
+                    noDeadline.push(task);
+                    return;
+                }
+
+                const taskDate = new Date(task.deadline);
+                taskDate.setHours(0, 0, 0, 0);
+                const diffDays = Math.ceil((taskDate - today) / (1000 * 60 * 60 * 24));
+
+                if (diffDays < 0) {
+                    overdue.push(task);
+                } else if (diffDays === 0) {
+                    todayTasks.push(task);
+                } else {
+                    upcoming.push(task);
+                }
+            });
+
+            // Sort upcoming by date
+            upcoming.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+
+            function renderCalendarSection(tasks, title, icon, className) {
+                if (tasks.length === 0) return '';
+
+                const tasksHtml = tasks.map(task => `
+                    <div class="calendar-task">
+                        <div class="task-type-indicator type-todo">✓</div>
+                        <div class="calendar-task-info">
+                            <div class="calendar-task-title">${task.title}</div>
+                            <div class="calendar-task-meta">
+                                <span class="priority-badge priority-${task.priority}">${task.priority}</span>
+                                ${task.assignee ? `<span class="assignee">${task.assignee}</span>` : ''}
+                                ${task.deadline ? `<span>${new Date(task.deadline).toLocaleDateString('sv-SE')}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="calendar-section ${className}">
+                        <h3>${icon} ${title} (${tasks.length})</h3>
+                        ${tasksHtml}
+                    </div>
+                `;
+            }
+
+            const sections = [
+                renderCalendarSection(overdue, 'Försenade', '🔴', 'overdue-section'),
+                renderCalendarSection(todayTasks, 'Idag', '🟡', 'today-section'),
+                renderCalendarSection(upcoming, 'Kommande', '🟢', 'upcoming-section'),
+                renderCalendarSection(noDeadline, 'Ingen deadline', '⚪', 'no-deadline-section')
+            ].filter(section => section !== '');
+
+            if (sections.length === 0) {
+                container.innerHTML = '<div class="empty-state">Inga todos med deadlines att visa än! 📅</div>';
+            } else {
+                container.innerHTML = sections.join('');
+            }
+        }
+
+        function updateParentTaskOptions() {
+            const select = document.getElementById('parent-task');
+            const allTasks = getAllTasks();
+            
+            select.innerHTML = '<option value="">Ingen (huvuduppgift)</option>';
+            
+            allTasks.forEach(task => {
+                select.innerHTML += `<option value="${task.id}">${task.title}</option>`;
+            });
+        }
+
+        function updateStats() {
+            const allTasks = getAllTasks();
+            const today = new Date();
+            
+            document.getElementById('total-tasks').textContent = allTasks.length;
+            document.getElementById('todos-count').textContent = allTasks.filter(t => t.type === 'todo').length;
+            document.getElementById('notes-count').textContent = allTasks.filter(t => t.type === 'note').length;
+            
+            const overdue = allTasks.filter(t => {
+                if (!t.deadline || t.type !== 'todo') return false;
+                const deadline = new Date(t.deadline);
+                return deadline < today;
+            }).length;
+            
+            document.getElementById('overdue-tasks').textContent = overdue;
+        }
+
+        // Lägg till task med Enter-tangenten
+        document.getElementById('task-title').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addTask();
+            }
+        });
+
+        // Initialize app
+        async function initApp() {
+            console.log('Initializing app...');
+            
+            // Test if Supabase is available
+            useSupabase = await testSupabaseConnection();
+            console.log('Using Supabase:', useSupabase);
+            
+            if (useSupabase) {
+                console.log('🌐 Connected to Supabase - data will sync across devices!');
+            } else {
+                console.log('💾 Using localStorage - data will be saved locally only');
+            }
+            
+            try {
+                await loadTasksFromSupabase();
+                renderTasks();
+                updateStats();
+                updateParentTaskOptions();
+                
+                // Show connection status to user
+                const statusDiv = document.createElement('div');
+                statusDiv.style.cssText = `
+                    position: fixed; top: 10px; right: 10px; 
+                    background: ${useSupabase ? '#10b981' : '#f59e0b'}; 
+                    color: white; padding: 8px 12px; border-radius: 6px;
+                    font-size: 12px; z-index: 1000; opacity: 0.9;
+                `;
+                statusDiv.textContent = useSupabase ? '🌐 Supabase Connected' : '💾 Local Mode';
+                document.body.appendChild(statusDiv);
+                
+                // Hide status after 3 seconds
+                setTimeout(() => {
+                    statusDiv.style.opacity = '0';
+                    setTimeout(() => statusDiv.remove(), 500);
+                }, 3000);
+                
+            } catch (error) {
+                console.error('Error initializing app:', error);
+                // Fallback to empty state if there's an error
+                tasks = [];
+                taskIdCounter = 1;
+                renderTasks();
+                updateStats();
+            }
+        }
+
+        // Start the app
+        initApp();
+    </script>
+</body>
+</html>
