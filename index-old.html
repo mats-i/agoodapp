@@ -1,0 +1,2523 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AGoodApp - Task & Notes Manager</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@1.35.7/dist/umd/supabase.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f8f9fa;
+            color: #1a1a1a;
+            line-height: 1.5;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: white;
+            border-right: 1px solid #e5e5e7;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed {
+            width: 60px;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e5e7;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar.collapsed .sidebar-header {
+            padding: 20px 15px;
+        }
+
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .sidebar.collapsed .sidebar-title {
+            display: none;
+        }
+
+        .hamburger-btn {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        .hamburger-btn:hover {
+            background: #f1f3f4;
+        }
+
+        .projects-section {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 0 0;
+        }
+
+        .sidebar.collapsed .projects-section {
+            padding: 20px 5px 0;
+        }
+
+        .sidebar-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #e5e5e7;
+            margin-top: auto;
+        }
+
+        .sidebar.collapsed .sidebar-footer {
+            padding: 15px 10px;
+        }
+
+        .settings-btn {
+            width: 100%;
+            background: none;
+            border: none;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .settings-btn:hover {
+            background: #f1f3f4;
+            color: #1a1a1a;
+        }
+
+        .sidebar.collapsed .settings-text {
+            display: none;
+        }
+
+        .sidebar.collapsed .settings-btn {
+            justify-content: center;
+        }
+
+        .add-project {
+            padding: 0 20px 15px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .sidebar.collapsed .add-project {
+            display: none;
+        }
+
+        .add-project input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .add-project input:focus {
+            outline: none;
+            border-color: #007aff;
+        }
+
+        .project-list {
+            list-style: none;
+        }
+
+        .project-item {
+            padding: 8px 20px;
+            cursor: pointer;
+            border-radius: 6px;
+            margin: 0 15px 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .sidebar.collapsed .project-item {
+            margin: 0 5px 4px;
+            padding: 8px 10px;
+            justify-content: center;
+        }
+
+        .project-item:hover {
+            background: #f1f3f4;
+        }
+
+        .project-item.active {
+            background: #007aff;
+            color: white;
+        }
+
+        .project-name {
+            flex: 1;
+        }
+
+        .sidebar.collapsed .project-name {
+            display: none;
+        }
+
+        .project-count {
+            background: #e5e5e7;
+            color: #666;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 12px;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .project-item.active .project-count {
+            background: rgba(255,255,255,0.3);
+            color: white;
+        }
+
+        .sidebar.collapsed .project-count {
+            display: none;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: white;
+            border-bottom: 1px solid #e5e5e7;
+            padding: 20px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .login-trigger-btn {
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .login-trigger-btn:hover {
+            background: #0056d6;
+        }
+
+        .user-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #007aff;
+            color: white;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .user-btn:hover {
+            background: #0056d6;
+            transform: translateY(-1px);
+        }
+
+        /* Login modal */
+        .login-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .login-modal.hidden {
+            display: none;
+        }
+
+        .login-content {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .login-header h2 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin: 0 0 8px 0;
+        }
+
+        .login-header p {
+            color: #666;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .login-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .login-btn {
+            flex: 1;
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .login-btn:hover {
+            background: #0056d6;
+        }
+
+        .signup-btn {
+            flex: 1;
+            background: white;
+            color: #007aff;
+            border: 1px solid #007aff;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .signup-btn:hover {
+            background: #f0f8ff;
+        }
+
+        .auth-divider {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            position: relative;
+            margin: 8px 0;
+        }
+
+        .auth-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #e5e5e7;
+            z-index: -1;
+        }
+
+        .auth-divider {
+            background: white;
+            padding: 0 16px;
+        }
+
+        .google-btn {
+            width: 100%;
+            background: white;
+            border: 1px solid #e5e5e7;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .google-btn:hover {
+            border-color: #007aff;
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 24px;
+        }
+
+        .skip-btn {
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .skip-btn:hover {
+            color: #1a1a1a;
+        }
+
+        /* User menu */
+        .user-menu {
+            position: absolute;
+            top: 70px;
+            right: 30px;
+            background: white;
+            border: 1px solid #e5e5e7;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            min-width: 200px;
+            z-index: 100;
+        }
+
+        .user-menu.hidden {
+            display: none;
+        }
+
+        .user-info {
+            padding: 16px;
+            border-bottom: 1px solid #e5e5e7;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #007aff;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .user-details {
+            flex: 1;
+        }
+
+        .user-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 2px;
+        }
+
+        .user-email {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .user-actions {
+            padding: 8px;
+        }
+
+        .user-action-btn {
+            width: 100%;
+            background: none;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .user-action-btn:hover {
+            background: #f1f3f4;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .connection-status {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-supabase {
+            background: #d1f2eb;
+            color: #0d7759;
+        }
+
+        .status-local {
+            background: #fef3e2;
+            color: #b45309;
+        }
+
+        .content-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            background: white;
+            border-bottom: 1px solid #e5e5e7;
+            padding: 0 30px;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            color: #007aff;
+            border-bottom-color: #007aff;
+        }
+
+        .tab:hover {
+            color: #007aff;
+        }
+
+        /* Main area */
+        .main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: white;
+        }
+
+        /* New task button */
+        .new-task-trigger {
+            padding: 20px 30px;
+            background: white;
+            border-bottom: 1px solid #e5e5e7;
+        }
+
+        .new-task-btn {
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .new-task-btn:hover {
+            background: #0056d6;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.25);
+        }
+
+        /* Form styling */
+        .add-task-form {
+            background: white;
+            border-bottom: 1px solid #e5e5e7;
+            padding: 0;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .add-task-form.hidden {
+            display: none;
+        }
+
+        .form-header {
+            padding: 20px 30px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .form-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin: 0;
+        }
+
+        .close-form-btn {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            color: #666;
+            transition: all 0.2s;
+        }
+
+        .close-form-btn:hover {
+            background: #f1f3f4;
+            color: #1a1a1a;
+        }
+
+        .add-task-form .form-row {
+            padding: 0 30px 20px;
+        }
+
+        .add-task-form .form-row:first-of-type {
+            padding-top: 20px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .cancel-btn {
+            background: #f1f3f4;
+            color: #666;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .cancel-btn:hover {
+            background: #e5e5e7;
+            color: #1a1a1a;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .form-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-group.flex-1 {
+            flex: 1;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-input {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #007aff;
+        }
+
+        .type-switch {
+            display: flex;
+            background: #f1f3f4;
+            border-radius: 6px;
+            padding: 2px;
+            gap: 2px;
+        }
+
+        .type-option {
+            flex: 1;
+            padding: 6px 12px;
+            background: none;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .type-option.active {
+            background: white;
+            color: #007aff;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .add-btn {
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .add-btn:hover {
+            background: #0056d6;
+        }
+
+        /* Settings view */
+        .settings-view {
+            flex: 1;
+            overflow-y: auto;
+            background: white;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .settings-view.hidden {
+            display: none;
+        }
+
+        .settings-header {
+            padding: 30px;
+            border-bottom: 1px solid #e5e5e7;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .settings-header h2 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin: 0;
+        }
+
+        .close-settings-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            color: #666;
+            transition: all 0.2s;
+        }
+
+        .close-settings-btn:hover {
+            background: #f1f3f4;
+            color: #1a1a1a;
+        }
+
+        .settings-content {
+            flex: 1;
+            padding: 0 30px 30px;
+            max-width: 600px;
+        }
+
+        .settings-section {
+            margin-bottom: 40px;
+        }
+
+        .settings-section h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin: 0 0 16px 0;
+        }
+
+        .settings-section.danger-zone h3 {
+            color: #dc2626;
+        }
+
+        .settings-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .settings-control-btn {
+            background: white;
+            border: 1px solid #e5e5e7;
+            padding: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            text-align: left;
+        }
+
+        .settings-control-btn:hover {
+            border-color: #007aff;
+            box-shadow: 0 1px 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .settings-control-btn.danger {
+            border-color: #fecaca;
+            background: #fef2f2;
+        }
+
+        .settings-control-btn.danger:hover {
+            border-color: #dc2626;
+            box-shadow: 0 1px 3px rgba(220, 38, 38, 0.1);
+        }
+
+        .btn-icon {
+            font-size: 20px;
+            width: 24px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .btn-content {
+            flex: 1;
+        }
+
+        .btn-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #1a1a1a;
+            margin-bottom: 2px;
+        }
+
+        .btn-description {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .settings-control-btn.danger .btn-title {
+            color: #dc2626;
+        }
+
+        .info-group {
+            background: #f8f9fa;
+            border: 1px solid #e5e5e7;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            font-size: 14px;
+        }
+
+        .info-item:not(:last-child) {
+            border-bottom: 1px solid #e5e5e7;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+        }
+
+        .info-item strong {
+            color: #1a1a1a;
+        }
+
+        /* Task list */
+        .task-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 30px;
+        }
+
+        .task-item {
+            background: white;
+            border: 1px solid #e5e5e7;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .task-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border-color: #007aff;
+        }
+
+        .task-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .drag-handle {
+            color: #d1d5db;
+            cursor: grab;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .task-item:hover .drag-handle {
+            opacity: 1;
+        }
+
+        .task-type-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .task-type-icon.todo {
+            background: #007aff;
+        }
+
+        .task-type-icon.note {
+            background: #34d399;
+        }
+
+        .task-title {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .task-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .priority-badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .priority-high {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .priority-medium {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .priority-low {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .task-actions {
+            opacity: 0;
+            transition: opacity 0.2s;
+            display: flex;
+            gap: 4px;
+        }
+
+        .task-item:hover .task-actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            padding: 4px;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #666;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #f1f3f4;
+            color: #007aff;
+        }
+
+        /* Subtasks */
+        .subtask {
+            margin-left: 32px;
+            margin-top: 8px;
+            border-left: 2px solid #f1f3f4;
+            padding-left: 16px;
+        }
+
+        .collapsed-subtasks {
+            display: none;
+        }
+
+        /* Calendar view */
+        .calendar-view {
+            display: none;
+            flex-direction: column;
+            gap: 20px;
+            padding: 20px 30px;
+        }
+
+        .calendar-view.active {
+            display: flex;
+        }
+
+        .calendar-section {
+            background: white;
+            border: 1px solid #e5e5e7;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .calendar-section-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e5e5e7;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .overdue {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+
+        .today {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+
+        .upcoming {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+
+        .no-deadline {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+        }
+
+        /* Statistics */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            padding: 20px 30px;
+            background: #fafafa;
+            border-bottom: 1px solid #e5e5e7;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #e5e5e7;
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #007aff;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 240px;
+            }
+
+            .sidebar.collapsed {
+                width: 50px;
+            }
+
+            .header {
+                padding: 15px 20px;
+            }
+
+            .add-task-form {
+                padding: 15px 20px;
+            }
+
+            .task-list {
+                padding: 15px 20px;
+            }
+
+            .form-row {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+
+        /* Hidden elements */
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+        <!-- Login modal -->
+        <div class="login-modal hidden" id="loginModal">
+            <div class="login-content">
+                <div class="login-header">
+                    <h2>Logga in</h2>
+                    <p>Synka dina uppgifter mellan alla enheter</p>
+                </div>
+                
+                <div class="login-form">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="loginEmail" class="form-input" placeholder="din@email.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Lösenord</label>
+                        <input type="password" id="loginPassword" class="form-input" placeholder="Ditt lösenord">
+                    </div>
+                    
+                    <div class="login-actions">
+                        <button class="login-btn" onclick="signIn()">Logga in</button>
+                        <button class="signup-btn" onclick="signUp()">Skapa konto</button>
+                    </div>
+                    
+                    <div class="auth-divider">eller</div>
+                    
+                    <button class="google-btn" onclick="signInWithGoogle()">
+                        <span class="google-icon">🌐</span>
+                        Fortsätt med Google
+                    </button>
+                </div>
+                
+                <div class="login-footer">
+                    <button class="skip-btn" onclick="skipLogin()">Använd utan inloggning</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- User menu -->
+        <div class="user-menu hidden" id="userMenu">
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">👤</div>
+                <div class="user-details">
+                    <div class="user-name" id="userName">Användare</div>
+                    <div class="user-email" id="userEmail">user@example.com</div>
+                </div>
+            </div>
+            <div class="user-actions">
+                <button class="user-action-btn" onclick="signOut()">Logga ut</button>
+            </div>
+        </div>
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2 class="sidebar-title">Projekt</h2>
+                <button class="hamburger-btn" onclick="toggleSidebar()">☰</button>
+            </div>
+            
+            <div class="projects-section">
+                <div class="add-project">
+                    <input type="text" id="newProjectInput" placeholder="Nytt projekt..." onkeypress="handleProjectInput(event)">
+                </div>
+                
+                <ul class="project-list" id="projectList">
+                    <!-- Projects will be added here -->
+                </ul>
+            </div>
+            
+            <div class="sidebar-footer">
+                <button class="settings-btn" onclick="showSettings()">
+                    <span class="settings-icon">⚙️</span>
+                    <span class="settings-text">Inställningar</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="header">
+                <h1 id="mainTitle">Alla uppgifter</h1>
+                <div class="header-right">
+                    <div class="connection-status" id="connectionStatus">
+                        💾 Local Mode
+                    </div>
+                    <button class="user-btn hidden" id="userBtn" onclick="toggleUserMenu()">
+                        <span id="userInitials">U</span>
+                    </button>
+                    <button class="login-trigger-btn" id="loginTriggerBtn" onclick="showLogin()">
+                        Logga in
+                    </button>
+                </div>
+            </div>
+
+            <div class="content-wrapper">
+                <!-- Tabs -->
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('outline')">📋 Outline</button>
+                    <button class="tab" onclick="switchTab('calendar')">📅 Kalender</button>
+                </div>
+
+                <!-- Main area -->
+                <div class="main-area">
+                    <!-- New task button -->
+                    <div class="new-task-trigger">
+                        <button class="new-task-btn" onclick="showTaskForm()">+ Ny</button>
+                    </div>
+
+                    <!-- Add/Edit task form -->
+                    <div class="add-task-form hidden" id="taskForm">
+                        <div class="form-header">
+                            <h3 id="formTitle">Ny uppgift</h3>
+                            <button class="close-form-btn" onclick="hideTaskForm()">✕</button>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group flex-1">
+                                <label>Uppgift</label>
+                                <input type="text" id="taskTitle" class="form-input" placeholder="Vad behöver göras?" onkeypress="handleTaskInput(event)">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Typ</label>
+                                <div class="type-switch">
+                                    <button class="type-option active" data-type="todo" onclick="selectType('todo')">✓ Todo</button>
+                                    <button class="type-option" data-type="note" onclick="selectType('note')">📝 Anteckning</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Prioritet</label>
+                                <select id="taskPriority" class="form-input">
+                                    <option value="medium">Medium</option>
+                                    <option value="high">Hög</option>
+                                    <option value="low">Låg</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Ansvarig</label>
+                                <input type="text" id="taskAssignee" class="form-input" placeholder="Vem ansvarar?">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Deadline</label>
+                                <input type="date" id="taskDeadline" class="form-input">
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button class="cancel-btn" onclick="hideTaskForm()">Avbryt</button>
+                                <button class="add-btn" id="saveBtn" onclick="saveTask()">Lägg till</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Statistics -->
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="stat-number" id="totalTasks">0</div>
+                            <div class="stat-label">Totalt antal</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="todoCount">0</div>
+                            <div class="stat-label">Todos</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="noteCount">0</div>
+                            <div class="stat-label">Anteckningar</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="overdueCount">0</div>
+                            <div class="stat-label">Försenade</div>
+                        </div>
+                    </div>
+
+                    <!-- Task list (Outline view) -->
+                    <div class="task-list" id="taskList">
+                        <!-- Tasks will be added here -->
+                    </div>
+
+                    <!-- Calendar view -->
+                    <div class="calendar-view" id="calendarView">
+                        <div class="calendar-section overdue">
+                            <div class="calendar-section-header">
+                                🔴 Försenade
+                            </div>
+                            <div class="task-list" id="overdueTasks"></div>
+                        </div>
+
+                        <div class="calendar-section today">
+                            <div class="calendar-section-header">
+                                🟡 Idag
+                            </div>
+                            <div class="task-list" id="todayTasks"></div>
+                        </div>
+
+                        <div class="calendar-section upcoming">
+                            <div class="calendar-section-header">
+                                🟢 Kommande
+                            </div>
+                            <div class="task-list" id="upcomingTasks"></div>
+                        </div>
+
+                        <div class="calendar-section no-deadline">
+                            <div class="calendar-section-header">
+                                ⚪ Ingen deadline
+                            </div>
+                            <div class="task-list" id="noDeadlineTasks"></div>
+                        </div>
+                    </div>
+
+                    <!-- Settings view -->
+                    <div class="settings-view hidden" id="settingsView">
+                        <div class="settings-header">
+                            <h2>Inställningar</h2>
+                            <button class="close-settings-btn" onclick="hideSettings()">✕</button>
+                        </div>
+
+                        <div class="settings-content">
+                            <div class="settings-section">
+                                <h3>Data & Backup</h3>
+                                <div class="settings-group">
+                                    <button class="settings-control-btn" onclick="exportData()">
+                                        <span class="btn-icon">💾</span>
+                                        <div class="btn-content">
+                                            <div class="btn-title">Exportera data</div>
+                                            <div class="btn-description">Spara all data som JSON-fil</div>
+                                        </div>
+                                    </button>
+                                    
+                                    <label for="importFile" class="settings-control-btn">
+                                        <span class="btn-icon">📁</span>
+                                        <div class="btn-content">
+                                            <div class="btn-title">Importera data</div>
+                                            <div class="btn-description">Ladda data från JSON-fil</div>
+                                        </div>
+                                    </label>
+                                    <input type="file" id="importFile" style="display: none;" onchange="importData(event)">
+                                </div>
+                            </div>
+
+                            <div class="settings-section">
+                                <h3>Synkronisering</h3>
+                                <div class="settings-group">
+                                    <button class="settings-control-btn" onclick="syncFromSupabase()">
+                                        <span class="btn-icon">🔄</span>
+                                        <div class="btn-content">
+                                            <div class="btn-title">Synka från Supabase</div>
+                                            <div class="btn-description">Hämta data från molnet</div>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="settings-section danger-zone">
+                                <h3>Farlig zon</h3>
+                                <div class="settings-group">
+                                    <button class="settings-control-btn danger" onclick="clearAllData()">
+                                        <span class="btn-icon">🗑️</span>
+                                        <div class="btn-content">
+                                            <div class="btn-title">Rensa all data</div>
+                                            <div class="btn-description">Tar bort alla uppgifter och projekt</div>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="settings-section">
+                                <h3>Information</h3>
+                                <div class="info-group">
+                                    <div class="info-item">
+                                        <strong>Version:</strong> 1.0.0
+                                    </div>
+                                    <div class="info-item">
+                                        <strong>Status:</strong> <span id="settingsConnectionStatus">💾 Local Mode</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <strong>Uppgifter:</strong> <span id="settingsTaskCount">0</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <strong>Projekt:</strong> <span id="settingsProjectCount">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let tasks = [];
+        let projects = [
+            { id: 'all', name: 'Alla uppgifter', system: true },
+            { id: 'work', name: 'Arbete', system: false },
+            { id: 'personal', name: 'Personligt', system: false }
+        ];
+        let currentProject = 'all';
+        let currentType = 'todo';
+        let currentTab = 'outline';
+        let currentView = 'main'; // 'main' or 'settings'
+        let supabaseClient = null;
+        let useSupabase = false;
+        let editingTask = null; // Track which task is being edited
+        let currentUser = null; // Current logged in user
+
+        // Supabase configuration
+        const SUPABASE_URL = 'https://tazwiywtzmyqbmmkhpc.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhendpeXdmenBteXFibW1raHBjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxOTg2NzMsImV4cCI6MjA3MTc3NDY3M30.GwC80boqAj4Z78qt3BIG-iau1QJuZiFe058vWtFBCxg';
+
+        // Initialize Supabase
+        function initSupabase() {
+            console.log('Supabase client initialized');
+            try {
+                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                
+                // Listen for auth changes
+                supabaseClient.auth.onAuthStateChange((event, session) => {
+                    handleAuthStateChange(event, session);
+                });
+                
+            } catch (error) {
+                console.error('Error creating Supabase client:', error);
+                supabaseClient = null;
+            }
+        }
+
+        // Authentication functions
+        function handleAuthStateChange(event, session) {
+            console.log('Auth state changed:', event, session);
+            
+            if (session && session.user) {
+                currentUser = session.user;
+                showUserInterface();
+                hideLogin();
+                loadUserData();
+            } else {
+                currentUser = null;
+                showLoginInterface();
+            }
+            
+            updateConnectionStatus();
+        }
+
+        function showUserInterface() {
+            document.getElementById('loginTriggerBtn').classList.add('hidden');
+            document.getElementById('userBtn').classList.remove('hidden');
+            
+            // Update user info
+            const user = currentUser;
+            document.getElementById('userInitials').textContent = getInitials(user.email);
+            document.getElementById('userName').textContent = user.user_metadata?.full_name || user.email.split('@')[0];
+            document.getElementById('userEmail').textContent = user.email;
+        }
+
+        function showLoginInterface() {
+            document.getElementById('loginTriggerBtn').classList.remove('hidden');
+            document.getElementById('userBtn').classList.add('hidden');
+            document.getElementById('userMenu').classList.add('hidden');
+        }
+
+        function getInitials(email) {
+            return email.charAt(0).toUpperCase();
+        }
+
+        function showLogin() {
+            document.getElementById('loginModal').classList.remove('hidden');
+            document.getElementById('loginEmail').focus();
+        }
+
+        function hideLogin() {
+            document.getElementById('loginModal').classList.add('hidden');
+        }
+
+        function skipLogin() {
+            hideLogin();
+            // Continue with local storage only
+        }
+
+        async function signIn() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!email || !password) {
+                alert('Vänligen fyll i både email och lösenord');
+                return;
+            }
+            
+            if (!supabaseClient) {
+                alert('Supabase inte tillgängligt. Kör appen lokalt för inloggning.');
+                return;
+            }
+
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                if (error) throw error;
+                
+                console.log('Signed in successfully:', data);
+                // handleAuthStateChange will handle the UI updates
+                
+            } catch (error) {
+                console.error('Sign in error:', error);
+                alert('Inloggning misslyckades: ' + error.message);
+            }
+        }
+
+        async function signUp() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!email || !password) {
+                alert('Vänligen fyll i både email och lösenord');
+                return;
+            }
+            
+            if (password.length < 6) {
+                alert('Lösenordet måste vara minst 6 tecken långt');
+                return;
+            }
+            
+            if (!supabaseClient) {
+                alert('Supabase inte tillgängligt. Kör appen lokalt för registrering.');
+                return;
+            }
+
+            try {
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email: email,
+                    password: password
+                });
+
+                if (error) throw error;
+                
+                console.log('Signed up successfully:', data);
+                alert('Konto skapat! Kolla din email för att bekräfta kontot.');
+                
+            } catch (error) {
+                console.error('Sign up error:', error);
+                alert('Registrering misslyckades: ' + error.message);
+            }
+        }
+
+        async function signInWithGoogle() {
+            if (!supabaseClient) {
+                alert('Supabase inte tillgängligt. Kör appen lokalt för Google-inloggning.');
+                return;
+            }
+
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo: window.location.origin + window.location.pathname
+                    }
+                });
+
+                if (error) throw error;
+                
+            } catch (error) {
+                console.error('Google sign in error:', error);
+                alert('Google-inloggning misslyckades: ' + error.message);
+            }
+        }
+
+        async function signOut() {
+            if (!supabaseClient) return;
+
+            try {
+                const { error } = await supabaseClient.auth.signOut();
+                if (error) throw error;
+                
+                // Clear local data
+                tasks = [];
+                projects = [
+                    { id: 'all', name: 'Alla uppgifter', system: true },
+                    { id: 'work', name: 'Arbete', system: false },
+                    { id: 'personal', name: 'Personligt', system: false }
+                ];
+                currentProject = 'all';
+                
+                renderProjects();
+                renderTasks();
+                updateStats();
+                updateMainTitle();
+                
+            } catch (error) {
+                console.error('Sign out error:', error);
+                alert('Utloggning misslyckades: ' + error.message);
+            }
+        }
+
+        function toggleUserMenu() {
+            const userMenu = document.getElementById('userMenu');
+            userMenu.classList.toggle('hidden');
+        }
+
+        // Close user menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const userMenu = document.getElementById('userMenu');
+            const userBtn = document.getElementById('userBtn');
+            
+            if (!userMenu.contains(event.target) && !userBtn.contains(event.target)) {
+                userMenu.classList.add('hidden');
+            }
+        });
+
+        function updateConnectionStatus() {
+            const statusElement = document.getElementById('connectionStatus');
+            const settingsStatusElement = document.getElementById('settingsConnectionStatus');
+            
+            let statusText, statusClass;
+            
+            if (currentUser && useSupabase) {
+                statusText = '🌐 Synkroniserat';
+                statusClass = 'status-supabase';
+            } else if (useSupabase) {
+                statusText = '🌐 Supabase Connected';
+                statusClass = 'status-supabase';
+            } else {
+                statusText = '💾 Local Mode';
+                statusClass = 'status-local';
+            }
+            
+            statusElement.textContent = statusText;
+            statusElement.className = 'connection-status ' + statusClass;
+            
+            if (settingsStatusElement) {
+                settingsStatusElement.textContent = statusText;
+            }
+        }
+
+        async function loadUserData() {
+            if (!currentUser || !useSupabase) return;
+            
+            try {
+                // Load user-specific tasks
+                const { data: userTasks, error: tasksError } = await supabaseClient
+                    .from('tasks')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: true });
+
+                if (tasksError) throw tasksError;
+
+                // Load user-specific projects
+                const { data: userProjects, error: projectsError } = await supabaseClient
+                    .from('projects')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: true });
+
+                if (projectsError && projectsError.code !== 'PGRST116') { // Ignore if table doesn't exist
+                    console.warn('Projects table not found, using default projects');
+                }
+
+                tasks = userTasks || [];
+                
+                if (userProjects && userProjects.length > 0) {
+                    const systemProjects = [
+                        { id: 'all', name: 'Alla uppgifter', system: true }
+                    ];
+                    projects = [...systemProjects, ...userProjects];
+                }
+                
+                renderProjects();
+                renderTasks();
+                updateStats();
+                
+            } catch (error) {
+                console.error('Error loading user data:', error);
+                // Fall back to local storage
+                loadTasksFromLocal();
+                loadProjectsFromLocal();
+            }
+        }
+
+        // Test Supabase connection
+        async function testSupabaseConnection() {
+            if (!supabaseClient) return false;
+            
+            try {
+                const { data, error } = await supabaseClient.from('tasks').select('count').limit(1);
+                if (error) throw error;
+                return true;
+            } catch (error) {
+                console.error('Supabase connection failed:', error.message);
+                return false;
+            }
+        }
+
+        // Initialize app
+        async function initApp() {
+            console.log('Initializing app...');
+            
+            // Initialize Supabase
+            initSupabase();
+            
+            // Test connection
+            const supabaseWorking = await testSupabaseConnection();
+            useSupabase = supabaseWorking;
+            
+            console.log('Using Supabase:', useSupabase);
+            
+            if (useSupabase && supabaseClient) {
+                // Check if user is already signed in
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                
+                if (session && session.user) {
+                    currentUser = session.user;
+                    showUserInterface();
+                    await loadUserData();
+                } else {
+                    showLoginInterface();
+                    // Show login modal for new users
+                    setTimeout(() => {
+                        const hasVisited = localStorage.getItem('agoodapp_has_visited');
+                        if (!hasVisited) {
+                            showLogin();
+                            localStorage.setItem('agoodapp_has_visited', 'true');
+                        }
+                    }, 1000);
+                    
+                    // Load local data as fallback
+                    loadTasksFromLocal();
+                    loadProjectsFromLocal();
+                }
+            } else {
+                console.log('💾 Using localStorage - data will be saved locally only');
+                showLoginInterface();
+                loadTasksFromLocal();
+                loadProjectsFromLocal();
+            }
+            
+            updateConnectionStatus();
+            renderProjects();
+            renderTasks();
+            updateStats();
+        }
+
+        // Project functions
+        function addProject() {
+            const input = document.getElementById('newProjectInput');
+            const name = input.value.trim();
+            
+            if (!name) return;
+            
+            const id = 'project_' + Date.now();
+            const newProject = { id, name, system: false };
+            
+            projects.push(newProject);
+            input.value = '';
+            
+            saveProjectsToLocal();
+            renderProjects();
+        }
+
+        function handleProjectInput(event) {
+            if (event.key === 'Enter') {
+                addProject();
+            }
+        }
+
+        function selectProject(projectId) {
+            if (currentView === 'settings') {
+                // Switch back to main view when selecting a project from settings
+                hideSettings();
+            }
+            
+            currentProject = projectId;
+            updateMainTitle();
+            renderProjects();
+            renderTasks();
+            updateStats();
+        }
+
+        function updateMainTitle() {
+            const project = projects.find(p => p.id === currentProject);
+            document.getElementById('mainTitle').textContent = project ? project.name : 'Alla uppgifter';
+        }
+
+        function renderProjects() {
+            const projectList = document.getElementById('projectList');
+            projectList.innerHTML = '';
+
+            projects.forEach(project => {
+                const taskCount = getTaskCountForProject(project.id);
+                const li = document.createElement('li');
+                li.className = `project-item ${project.id === currentProject ? 'active' : ''}`;
+                li.onclick = () => selectProject(project.id);
+                
+                li.innerHTML = `
+                    <span class="project-name">${project.name}</span>
+                    <span class="project-count">${taskCount}</span>
+                `;
+                
+                projectList.appendChild(li);
+            });
+        }
+
+        function getTaskCountForProject(projectId) {
+            if (projectId === 'all') {
+                return tasks.length;
+            }
+            return tasks.filter(task => task.project === projectId).length;
+        }
+
+        function saveProjectsToLocal() {
+            localStorage.setItem('agoodapp_projects', JSON.stringify(projects));
+        }
+
+        function loadProjectsFromLocal() {
+            const saved = localStorage.getItem('agoodapp_projects');
+            if (saved) {
+                try {
+                    const savedProjects = JSON.parse(saved);
+                    // Merge with default projects, keeping user-added ones
+                    const userProjects = savedProjects.filter(p => !p.system);
+                    projects = [
+                        { id: 'all', name: 'Alla uppgifter', system: true },
+                        { id: 'work', name: 'Arbete', system: false },
+                        { id: 'personal', name: 'Personligt', system: false },
+                        ...userProjects
+                    ];
+                } catch (error) {
+                    console.error('Error loading projects:', error);
+                }
+            }
+        }
+
+        // Settings functions
+        function showSettings() {
+            currentView = 'settings';
+            
+            // Hide main content
+            document.getElementById('taskList').style.display = 'none';
+            document.getElementById('calendarView').classList.remove('active');
+            
+            // Show settings
+            document.getElementById('settingsView').classList.remove('hidden');
+            
+            // Update header
+            document.getElementById('mainTitle').textContent = 'Inställningar';
+            
+            // Hide tabs and new task button
+            document.querySelector('.tabs').style.display = 'none';
+            document.querySelector('.new-task-trigger').style.display = 'none';
+            document.querySelector('.stats').style.display = 'none';
+            
+            // Update settings info
+            updateSettingsInfo();
+        }
+
+        function hideSettings() {
+            currentView = 'main';
+            
+            // Hide settings
+            document.getElementById('settingsView').classList.add('hidden');
+            
+            // Show main content
+            document.querySelector('.tabs').style.display = 'flex';
+            document.querySelector('.new-task-trigger').style.display = 'block';
+            document.querySelector('.stats').style.display = 'grid';
+            
+            // Restore previous view
+            if (currentTab === 'outline') {
+                document.getElementById('taskList').style.display = 'block';
+            } else {
+                document.getElementById('calendarView').classList.add('active');
+            }
+            
+            // Update header
+            updateMainTitle();
+        }
+
+        function updateSettingsInfo() {
+            // Update connection status
+            const statusText = useSupabase ? '🌐 Supabase Connected' : '💾 Local Mode';
+            document.getElementById('settingsConnectionStatus').textContent = statusText;
+            
+            // Update counts
+            document.getElementById('settingsTaskCount').textContent = tasks.length;
+            document.getElementById('settingsProjectCount').textContent = projects.filter(p => !p.system).length;
+        }
+        function showTaskForm(task = null) {
+            const form = document.getElementById('taskForm');
+            const formTitle = document.getElementById('formTitle');
+            const saveBtn = document.getElementById('saveBtn');
+            
+            if (task) {
+                // Editing existing task
+                editingTask = task;
+                formTitle.textContent = 'Redigera uppgift';
+                saveBtn.textContent = 'Spara';
+                
+                // Fill form with existing data
+                document.getElementById('taskTitle').value = task.title;
+                document.getElementById('taskPriority').value = task.priority;
+                document.getElementById('taskAssignee').value = task.assignee || '';
+                document.getElementById('taskDeadline').value = task.deadline || '';
+                
+                // Set type
+                currentType = task.type;
+                selectType(task.type);
+            } else {
+                // Creating new task
+                editingTask = null;
+                formTitle.textContent = 'Ny uppgift';
+                saveBtn.textContent = 'Lägg till';
+                clearTaskForm();
+            }
+            
+            form.classList.remove('hidden');
+            document.getElementById('taskTitle').focus();
+        }
+
+        function hideTaskForm() {
+            document.getElementById('taskForm').classList.add('hidden');
+            clearTaskForm();
+            editingTask = null;
+        }
+
+        function clearTaskForm() {
+            document.getElementById('taskTitle').value = '';
+            document.getElementById('taskAssignee').value = '';
+            document.getElementById('taskDeadline').value = '';
+            document.getElementById('taskPriority').value = 'medium';
+            selectType('todo');
+        }
+
+        function saveTask() {
+            const title = document.getElementById('taskTitle').value.trim();
+            if (!title) return;
+
+            if (editingTask) {
+                // Update existing task
+                editingTask.title = title;
+                editingTask.type = currentType;
+                editingTask.priority = document.getElementById('taskPriority').value;
+                editingTask.assignee = document.getElementById('taskAssignee').value.trim() || null;
+                editingTask.deadline = document.getElementById('taskDeadline').value || null;
+            } else {
+                // Create new task
+                const task = {
+                    id: Date.now(),
+                    title: title,
+                    type: currentType,
+                    priority: document.getElementById('taskPriority').value,
+                    assignee: document.getElementById('taskAssignee').value.trim() || null,
+                    deadline: document.getElementById('taskDeadline').value || null,
+                    project: currentProject === 'all' ? 'work' : currentProject,
+                    parent_id: null,
+                    collapsed: false,
+                    created_at: new Date().toISOString()
+                };
+
+                tasks.push(task);
+            }
+
+            hideTaskForm();
+            saveTasksToStorage();
+            renderTasks();
+            updateStats();
+        }
+
+        // Task functions
+        function addTask() {
+            // This function is now replaced by saveTask()
+            saveTask();
+        }
+
+        function editTask(taskId, event) {
+            // Prevent event bubbling when clicking action buttons
+            if (event && event.target.closest('.task-actions')) {
+                return;
+            }
+            
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                showTaskForm(task);
+            }
+        }
+
+        function handleTaskInput(event) {
+            if (event.key === 'Enter') {
+                saveTask();
+            }
+        }
+
+        function selectType(type) {
+            currentType = type;
+            document.querySelectorAll('.type-option').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.type === type);
+            });
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(task => task.id !== id);
+            saveTasksToStorage();
+            renderTasks();
+            updateStats();
+        }
+
+        function addSubtask(parentId) {
+            const title = prompt('Ange underuppgift:');
+            if (!title) return;
+
+            const parentTask = tasks.find(t => t.id === parentId);
+            
+            const subtask = {
+                id: Date.now(),
+                title: title,
+                type: 'todo',
+                priority: 'medium',
+                assignee: null,
+                deadline: null,
+                project: parentTask.project,
+                parent_id: parentId,
+                collapsed: false,
+                created_at: new Date().toISOString()
+            };
+
+            tasks.push(subtask);
+            saveTasksToStorage();
+            renderTasks();
+            updateStats();
+        }
+
+        function toggleCollapse(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                task.collapsed = !task.collapsed;
+                saveTasksToStorage();
+                renderTasks();
+            }
+        }
+
+        function switchTab(tab) {
+            if (currentView === 'settings') return; // Don't switch tabs in settings view
+            
+            currentTab = tab;
+            
+            // Update tab appearance
+            document.querySelectorAll('.tab').forEach(tabEl => {
+                tabEl.classList.toggle('active', tabEl.textContent.includes(tab === 'outline' ? 'Outline' : 'Kalender'));
+            });
+
+            if (tab === 'outline') {
+                document.getElementById('taskList').style.display = 'block';
+                document.getElementById('calendarView').classList.remove('active');
+            } else {
+                document.getElementById('taskList').style.display = 'none';
+                document.getElementById('calendarView').classList.add('active');
+                renderCalendarView();
+            }
+        }
+
+        function renderTasks() {
+            const taskList = document.getElementById('taskList');
+            taskList.innerHTML = '';
+
+            // Filter tasks based on current project and only show parent tasks (not subtasks)
+            let filteredTasks = tasks.filter(task => {
+                if (task.parent_id !== null) return false; // Skip subtasks in main view
+                if (currentProject === 'all') return true;
+                return task.project === currentProject;
+            });
+
+            filteredTasks.forEach(task => {
+                const taskElement = createTaskElement(task);
+                taskList.appendChild(taskElement);
+
+                // Add subtasks if they exist
+                const subtasks = tasks.filter(t => t.parent_id === task.id);
+                if (subtasks.length > 0) {
+                    subtasks.forEach(subtask => {
+                        const subtaskElement = createTaskElement(subtask, true);
+                        subtaskElement.style.display = task.collapsed ? 'none' : 'block';
+                        taskList.appendChild(subtaskElement);
+                    });
+                }
+            });
+        }
+
+        function createTaskElement(task, isSubtask = false) {
+            const taskDiv = document.createElement('div');
+            taskDiv.className = `task-item ${isSubtask ? 'subtask' : ''}`;
+            taskDiv.draggable = true;
+            taskDiv.dataset.taskId = task.id;
+            taskDiv.onclick = (event) => editTask(task.id, event);
+
+            const hasSubtasks = tasks.some(t => t.parent_id === task.id);
+            const collapseButton = hasSubtasks ? `<button class="action-btn" onclick="event.stopPropagation(); toggleCollapse(${task.id})">${task.collapsed ? '▶' : '▼'}</button>` : '';
+
+            const deadlineText = task.deadline ? formatDate(task.deadline) : '';
+            const isOverdue = task.deadline && new Date(task.deadline) < new Date() && task.type === 'todo';
+
+            taskDiv.innerHTML = `
+                <div class="task-content">
+                    <span class="drag-handle">⋮⋮</span>
+                    <div class="task-type-icon ${task.type}">
+                        ${task.type === 'todo' ? '✓' : '📝'}
+                    </div>
+                    <div class="task-title ${isOverdue ? 'overdue' : ''}">${task.title}</div>
+                    <div class="task-meta">
+                        <span class="priority-badge priority-${task.priority}">${task.priority}</span>
+                        ${task.assignee ? `<span>${task.assignee}</span>` : ''}
+                        ${deadlineText ? `<span class="${isOverdue ? 'overdue' : ''}">${deadlineText}</span>` : ''}
+                    </div>
+                    <div class="task-actions">
+                        ${collapseButton}
+                        ${!isSubtask ? `<button class="action-btn" onclick="event.stopPropagation(); addSubtask(${task.id})">➕</button>` : ''}
+                        <button class="action-btn" onclick="event.stopPropagation(); deleteTask(${task.id})">🗑️</button>
+                    </div>
+                </div>
+            `;
+
+            return taskDiv;
+        }
+
+        function renderCalendarView() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const overdueTasks = [];
+            const todayTasks = [];
+            const upcomingTasks = [];
+            const noDeadlineTasks = [];
+
+            // Filter for current project
+            let filteredTasks = tasks.filter(task => {
+                if (currentProject === 'all') return true;
+                return task.project === currentProject;
+            });
+
+            // Only show todos in calendar view
+            filteredTasks = filteredTasks.filter(task => task.type === 'todo');
+
+            filteredTasks.forEach(task => {
+                if (!task.deadline) {
+                    noDeadlineTasks.push(task);
+                } else {
+                    const taskDate = new Date(task.deadline);
+                    taskDate.setHours(0, 0, 0, 0);
+                    
+                    if (taskDate < today) {
+                        overdueTasks.push(task);
+                    } else if (taskDate.getTime() === today.getTime()) {
+                        todayTasks.push(task);
+                    } else {
+                        upcomingTasks.push(task);
+                    }
+                }
+            });
+
+            renderCalendarSection('overdueTasks', overdueTasks);
+            renderCalendarSection('todayTasks', todayTasks);
+            renderCalendarSection('upcomingTasks', upcomingTasks);
+            renderCalendarSection('noDeadlineTasks', noDeadlineTasks);
+        }
+
+        function renderCalendarSection(elementId, tasks) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = '';
+
+            tasks.forEach(task => {
+                const taskElement = createTaskElement(task);
+                container.appendChild(taskElement);
+            });
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('sv-SE');
+        }
+
+        function updateStats() {
+            const filteredTasks = currentProject === 'all' ? tasks : tasks.filter(t => t.project === currentProject);
+            
+            const todos = filteredTasks.filter(task => task.type === 'todo');
+            const notes = filteredTasks.filter(task => task.type === 'note');
+            const overdue = todos.filter(task => {
+                if (!task.deadline) return false;
+                return new Date(task.deadline) < new Date();
+            });
+
+            document.getElementById('totalTasks').textContent = filteredTasks.length;
+            document.getElementById('todoCount').textContent = todos.length;
+            document.getElementById('noteCount').textContent = notes.length;
+            document.getElementById('overdueCount').textContent = overdue.length;
+            
+            // Update settings info if in settings view
+            if (currentView === 'settings') {
+                updateSettingsInfo();
+            }
+        }
+
+        // Sidebar functions
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+            
+            // Save preference
+            localStorage.setItem('agoodapp_sidebar_collapsed', sidebar.classList.contains('collapsed'));
+        }
+
+        function loadSidebarState() {
+            const collapsed = localStorage.getItem('agoodapp_sidebar_collapsed') === 'true';
+            if (collapsed) {
+                document.getElementById('sidebar').classList.add('collapsed');
+            }
+        }
+
+        // Storage functions
+        async function saveTasksToStorage() {
+            if (useSupabase) {
+                await saveTasksToSupabase();
+            } else {
+                saveTasksToLocal();
+            }
+        }
+
+        function saveTasksToLocal() {
+            localStorage.setItem('agoodapp_tasks', JSON.stringify(tasks));
+        }
+
+        function loadTasksFromLocal() {
+            const saved = localStorage.getItem('agoodapp_tasks');
+            if (saved) {
+                try {
+                    tasks = JSON.parse(saved);
+                } catch (error) {
+                    console.error('Error loading tasks:', error);
+                    tasks = [];
+                }
+            }
+        }
+
+        async function saveTasksToSupabase() {
+            if (!supabaseClient || !currentUser) return;
+            
+            try {
+                // Add user_id to all tasks
+                const tasksWithUserId = tasks.map(task => ({
+                    ...task,
+                    user_id: currentUser.id
+                }));
+
+                // Delete existing user tasks and insert new ones
+                const { error: deleteError } = await supabaseClient
+                    .from('tasks')
+                    .delete()
+                    .eq('user_id', currentUser.id);
+                
+                if (deleteError) throw deleteError;
+
+                if (tasksWithUserId.length > 0) {
+                    const { error: insertError } = await supabaseClient
+                        .from('tasks')
+                        .insert(tasksWithUserId);
+                    
+                    if (insertError) throw insertError;
+                }
+
+                console.log('Tasks saved to Supabase successfully');
+            } catch (error) {
+                console.error('Error saving to Supabase:', error);
+                // Fall back to localStorage
+                saveTasksToLocal();
+            }
+        }
+
+        async function loadTasksFromSupabase() {
+            if (!supabaseClient) {
+                loadTasksFromLocal();
+                return;
+            }
+
+            try {
+                console.log('Loading tasks from Supabase...');
+                
+                if (currentUser) {
+                    // Load user-specific tasks
+                    const { data, error } = await supabaseClient
+                        .from('tasks')
+                        .select('*')
+                        .eq('user_id', currentUser.id)
+                        .order('created_at', { ascending: true });
+
+                    if (error) throw error;
+
+                    console.log('Raw data from Supabase:', data);
+                    tasks = data || [];
+                } else {
+                    // Load all tasks (fallback for anonymous users)
+                    const { data, error } = await supabaseClient
+                        .from('tasks')
+                        .select('*')
+                        .is('user_id', null)
+                        .order('created_at', { ascending: true });
+
+                    if (error) throw error;
+                    tasks = data || [];
+                }
+                
+                console.log('Tasks loaded successfully:', tasks);
+                
+                // Also save to localStorage as backup
+                saveTasksToLocal();
+            } catch (error) {
+                console.error('Error loading from Supabase:', error);
+                loadTasksFromLocal();
+            }
+        }
+
+        async function syncFromSupabase() {
+            if (useSupabase) {
+                await loadTasksFromSupabase();
+                renderTasks();
+                updateStats();
+                alert('Data synkroniserad från Supabase!');
+            } else {
+                alert('Supabase inte tillgängligt. Kör appen lokalt för att använda molnsynkronisering.');
+            }
+        }
+
+        // Import/Export functions
+        function exportData() {
+            const data = {
+                tasks: tasks,
+                projects: projects,
+                exportDate: new Date().toISOString(),
+                version: '1.0'
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `agoodapp-backup-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (data.tasks) tasks = data.tasks;
+                    if (data.projects) {
+                        // Keep system projects, add imported user projects
+                        const systemProjects = projects.filter(p => p.system);
+                        const importedUserProjects = data.projects.filter(p => !p.system);
+                        projects = [...systemProjects, ...importedUserProjects];
+                    }
+
+                    saveTasksToStorage();
+                    saveProjectsToLocal();
+                    renderProjects();
+                    renderTasks();
+                    updateStats();
+                    
+                    alert('Data importerad framgångsrikt!');
+                } catch (error) {
+                    console.error('Import error:', error);
+                    alert('Fel vid import av data.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function clearAllData() {
+            if (confirm('Är du säker på att du vill rensa all data? Detta kan inte ångras.')) {
+                tasks = [];
+                projects = [
+                    { id: 'all', name: 'Alla uppgifter', system: true },
+                    { id: 'work', name: 'Arbete', system: false },
+                    { id: 'personal', name: 'Personligt', system: false }
+                ];
+                currentProject = 'all';
+                
+                saveTasksToStorage();
+                saveProjectsToLocal();
+                renderProjects();
+                renderTasks();
+                updateStats();
+                updateMainTitle();
+            }
+        }
+
+        // Drag and drop functionality
+        let draggedTask = null;
+
+        function setupDragAndDrop() {
+            document.addEventListener('dragstart', function(e) {
+                if (e.target.closest('.task-item')) {
+                    draggedTask = e.target.closest('.task-item');
+                    e.dataTransfer.effectAllowed = 'move';
+                }
+            });
+
+            document.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            });
+
+            document.addEventListener('drop', function(e) {
+                e.preventDefault();
+                
+                const targetTask = e.target.closest('.task-item');
+                if (targetTask && draggedTask && targetTask !== draggedTask) {
+                    const draggedId = parseInt(draggedTask.dataset.taskId);
+                    const targetId = parseInt(targetTask.dataset.taskId);
+                    
+                    // Find tasks in array
+                    const draggedIndex = tasks.findIndex(t => t.id === draggedId);
+                    const targetIndex = tasks.findIndex(t => t.id === targetId);
+                    
+                    if (draggedIndex > -1 && targetIndex > -1) {
+                        // Remove dragged task and insert at new position
+                        const [draggedTaskData] = tasks.splice(draggedIndex, 1);
+                        tasks.splice(targetIndex, 0, draggedTaskData);
+                        
+                        saveTasksToStorage();
+                        renderTasks();
+                    }
+                }
+                
+                draggedTask = null;
+            });
+        }
+
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSidebarState();
+            setupDragAndDrop();
+            setupKeyboardEvents();
+            initApp();
+        });
+
+        // Setup keyboard events
+        function setupKeyboardEvents() {
+            // Enter key in login form
+            document.getElementById('loginEmail').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('loginPassword').focus();
+                }
+            });
+
+            document.getElementById('loginPassword').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    signIn();
+                }
+            });
+
+            // Escape key to close modals
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    hideLogin();
+                    hideTaskForm();
+                    document.getElementById('userMenu').classList.add('hidden');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

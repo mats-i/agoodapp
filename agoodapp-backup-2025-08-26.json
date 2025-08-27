@@ -1,0 +1,76 @@
+{
+  "tasks": [
+    {
+      "id": 1756221634216,
+      "title": "Testar",
+      "type": "todo",
+      "priority": "medium",
+      "assignee": null,
+      "deadline": null,
+      "project": "personal",
+      "parent_id": null,
+      "collapsed": false,
+      "created_at": "2025-08-26T15:20:34.216Z"
+    },
+    {
+      "id": 1756221640726,
+      "title": "Fixa",
+      "type": "todo",
+      "priority": "medium",
+      "assignee": null,
+      "deadline": null,
+      "project": "personal",
+      "parent_id": null,
+      "collapsed": false,
+      "created_at": "2025-08-26T15:20:40.726Z"
+    },
+    {
+      "id": 1756221870266,
+      "title": "greja",
+      "type": "todo",
+      "priority": "medium",
+      "assignee": null,
+      "deadline": null,
+      "project": "work",
+      "parent_id": null,
+      "collapsed": false,
+      "created_at": "2025-08-26T15:24:30.266Z"
+    },
+    {
+      "id": 1756221876343,
+      "title": "fixa",
+      "type": "todo",
+      "priority": "medium",
+      "assignee": null,
+      "deadline": null,
+      "project": "work",
+      "parent_id": null,
+      "collapsed": false,
+      "created_at": "2025-08-26T15:24:36.343Z"
+    }
+  ],
+  "projects": [
+    {
+      "id": "all",
+      "name": "Alla uppgifter",
+      "system": true
+    },
+    {
+      "id": "work",
+      "name": "Arbete",
+      "system": false
+    },
+    {
+      "id": "personal",
+      "name": "Personligt",
+      "system": false
+    },
+    {
+      "id": "project_1756221625912",
+      "name": "Test",
+      "system": false
+    }
+  ],
+  "exportDate": "2025-08-26T15:24:42.451Z",
+  "version": "1.0"
+}
