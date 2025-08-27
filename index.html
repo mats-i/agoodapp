@@ -833,6 +833,137 @@
                 flex-direction: column;
             }
         }
+        
+        /* Filter Modal */
+        .filter-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .filter-modal.show {
+            display: flex;
+        }
+        
+        .filter-modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90vw;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .filter-modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #e5e5e7;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .filter-modal-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1d1d1f;
+        }
+        
+        .filter-modal-body {
+            padding: 24px;
+            overflow-y: auto;
+        }
+        
+        .filter-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .filter-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 14px;
+            color: #424245;
+        }
+        
+        .filter-item:hover {
+            background: #f5f5f7;
+        }
+        
+        .filter-item.active {
+            background: #007aff;
+            color: white;
+        }
+        
+        .filter-item .icon {
+            margin-right: 12px;
+            font-size: 16px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .filter-item .name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .filter-item .actions {
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .filter-item:hover .actions {
+            opacity: 1;
+        }
+        
+        .filter-action-btn {
+            background: none;
+            border: none;
+            padding: 2px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.2s;
+        }
+        
+        .filter-action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .filter-item.active .filter-action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .sidebar.collapsed .filter-section {
+            display: none;
+        }
+        
+        /* Multiple select styling */
+        select[multiple] {
+            height: auto;
+            min-height: 80px;
+        }
+        
+        select[multiple] option:checked {
+            background: #007aff;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -851,7 +982,7 @@
                     <span class="count" id="count-all">0</span>
                 </div>
                 
-                <div class="project-item" data-project="inbox" onclick="showInbox()">
+                <div class="project-item" data-project="inbox">
                     <span class="icon">🔔</span>
                     <span class="name">Inbox</span>
                     <span class="count" id="count-inbox">0</span>
@@ -869,10 +1000,21 @@
                     <span class="count" id="count-personal">0</span>
                 </div>
                 
-                <div class="project-item" data-project="settings" onclick="showSettings()">
+                <div class="project-item" data-project="settings">
                     <span class="icon">⚙️</span>
                     <span class="name">Inställningar</span>
                     <span class="count"></span>
+                </div>
+                
+                <!-- Saved Filters -->
+                <div class="filter-section" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e5e7;" id="saved-filters">
+                    <div class="filter-section-header" style="padding: 0 20px 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 12px; font-weight: 600; color: #86868b; text-transform: uppercase; letter-spacing: 0.5px;">Filter</span>
+                        <button id="new-filter-btn" class="btn" style="font-size: 12px; padding: 4px 8px; background: none; border: 1px solid #d1d1d6; border-radius: 4px; cursor: pointer;">+ Nytt</button>
+                    </div>
+                    <div id="filter-list">
+                        <!-- Saved filters will be populated here -->
+                    </div>
                 </div>
             </div>
             
@@ -945,6 +1087,21 @@
                             <div class="form-group">
                                 <label>Deadline</label>
                                 <input type="date" id="task-deadline">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Agilt</label>
+                                <select id="task-agile">
+                                    <option value="later" selected>Later</option>
+                                    <option value="next">Next</option>
+                                    <option value="now">Now</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Uppsk. tid (h)</label>
+                                <input type="number" id="task-estimated-hours" placeholder="t.ex. 2.5" step="0.25" min="0">
                             </div>
                         </div>
                         
@@ -1096,6 +1253,32 @@
                         </div>
                     </div>
                     
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Agilt</label>
+                            <select id="edit-task-agile">
+                                <option value="later">Later</option>
+                                <option value="next">Next</option>
+                                <option value="now">Now</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Uppsk. tid (h)</label>
+                            <input type="number" id="edit-task-estimated-hours" placeholder="t.ex. 2.5" step="0.25" min="0">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Skapad</label>
+                            <input type="text" id="edit-task-created" readonly style="background: #f5f5f7; color: #86868b;">
+                        </div>
+                        <div class="form-group">
+                            <label>Avklarad</label>
+                            <input type="text" id="edit-task-completed" readonly style="background: #f5f5f7; color: #86868b;">
+                        </div>
+                    </div>
+                    
                     <div class="form-actions">
                         <button class="btn btn-secondary" onclick="hideRightPanel()">Avbryt</button>
                         <button class="btn btn-primary" onclick="saveEditedTask()">Spara</button>
@@ -1141,6 +1324,8 @@
         let currentEditTaskType = 'todo';
         let inboxFilter = 'all';
         let notifications = [];
+        let savedFilters = [];
+        let activeFilter = null;
         let currentUser = 'mats'; // För demo, senare från inloggning
         
         // Supabase configuration
@@ -1228,6 +1413,9 @@
                     console.log('Tasks loaded from localStorage:', tasks);
                 }
                 
+                // Migrate old task format to new format
+                tasks = tasks.map(task => migrateTaskFormat(task));
+                
                 // Load notifications
                 loadNotifications();
                 
@@ -1239,10 +1427,33 @@
                 // Fallback to localStorage
                 const savedTasks = localStorage.getItem('agoodapp_tasks');
                 tasks = savedTasks ? JSON.parse(savedTasks) : [];
+                // Migrate old tasks here too
+                tasks = tasks.map(task => migrateTaskFormat(task));
                 renderTasks();
                 updateProjectCounts();
                 updateInboxCount();
             }
+        }
+        
+        function migrateTaskFormat(task) {
+            // Ensure task has all required fields with proper defaults
+            return {
+                id: task.id ? String(task.id) : generateId(), // Ensure string ID
+                title: task.title || 'Untitled Task',
+                type: task.type || 'todo',
+                priority: task.priority || 'medium',
+                assignee: task.assignee || currentUser,
+                deadline: task.deadline || null,
+                project: task.project || 'work',
+                completed: Boolean(task.completed),
+                parent_id: task.parent_id || null,
+                collapsed: Boolean(task.collapsed),
+                notes: Array.isArray(task.notes) ? task.notes : [],
+                agile: task.agile || 'later',
+                estimated_hours: task.estimated_hours || null,
+                created_at: task.created_at || new Date().toISOString(),
+                completed_at: task.completed_at || null
+            };
         }
         
         async function saveTasks() {
@@ -1290,6 +1501,8 @@
             document.getElementById('task-priority').value = 'medium';
             document.getElementById('task-assignee').value = currentUser; // Set to current user
             document.getElementById('task-deadline').value = '';
+            document.getElementById('task-agile').value = 'later';
+            document.getElementById('task-estimated-hours').value = '';
             
             // Reset to todo
             currentTaskType = 'todo';
@@ -1318,6 +1531,7 @@
             
             const assigneeSelect = document.getElementById('task-assignee');
             const assignee = assigneeSelect.value;
+            const estimatedHours = document.getElementById('task-estimated-hours').value;
             
             const task = {
                 id: editingTask ? editingTask.id : generateId(),
@@ -1331,7 +1545,10 @@
                 parent_id: null,
                 collapsed: false,
                 notes: editingTask ? editingTask.notes || [] : [],
-                created_at: editingTask ? editingTask.created_at : new Date().toISOString()
+                agile: document.getElementById('task-agile').value,
+                estimated_hours: estimatedHours ? parseFloat(estimatedHours) : null,
+                created_at: editingTask ? editingTask.created_at : new Date().toISOString(),
+                completed_at: editingTask ? editingTask.completed_at : null
             };
             
             if (editingTask) {
@@ -1352,13 +1569,19 @@
         }
         
         function editTask(taskId) {
+            console.log('Editing task:', taskId); // Debug
             const task = tasks.find(t => t.id === taskId);
-            if (!task) return;
+            if (!task) {
+                console.log('Task not found:', taskId);
+                return;
+            }
             
+            console.log('Found task:', task); // Debug
             showRightPanel(task);
         }
         
         function showRightPanel(task) {
+            console.log('Showing right panel for task:', task); // Debug
             editingTask = task;
             currentEditTaskType = task.type;
             
@@ -1367,6 +1590,14 @@
             document.getElementById('edit-task-priority').value = task.priority;
             document.getElementById('edit-task-assignee').value = task.assignee || currentUser;
             document.getElementById('edit-task-deadline').value = task.deadline || '';
+            document.getElementById('edit-task-agile').value = task.agile || 'later';
+            document.getElementById('edit-task-estimated-hours').value = task.estimated_hours || '';
+            
+            // Set readonly fields
+            const createdDate = task.created_at ? new Date(task.created_at).toLocaleString('sv-SE') : '';
+            const completedDate = task.completed_at ? new Date(task.completed_at).toLocaleString('sv-SE') : 'Ej avklarad';
+            document.getElementById('edit-task-created').value = createdDate;
+            document.getElementById('edit-task-completed').value = completedDate;
             
             // Set type switch
             const switchEl = document.getElementById('edit-type-switch');
@@ -1379,7 +1610,10 @@
             // Populate notes
             renderNotes();
             
-            document.getElementById('right-panel').classList.add('show');
+            const rightPanel = document.getElementById('right-panel');
+            console.log('Right panel element:', rightPanel); // Debug
+            rightPanel.classList.add('show');
+            console.log('Added show class, classes now:', rightPanel.className); // Debug
         }
         
         function hideRightPanel() {
@@ -1405,11 +1639,15 @@
             const title = document.getElementById('edit-task-title').value.trim();
             if (!title) return;
             
+            const estimatedHours = document.getElementById('edit-task-estimated-hours').value;
+            
             editingTask.title = title;
             editingTask.type = currentEditTaskType;
             editingTask.priority = document.getElementById('edit-task-priority').value;
             editingTask.assignee = document.getElementById('edit-task-assignee').value;
             editingTask.deadline = document.getElementById('edit-task-deadline').value || null;
+            editingTask.agile = document.getElementById('edit-task-agile').value;
+            editingTask.estimated_hours = estimatedHours ? parseFloat(estimatedHours) : null;
             
             await saveTasks();
             renderTasks();
@@ -1442,10 +1680,17 @@
             if (!task || task.type !== 'todo') return;
             
             task.completed = !task.completed;
+            task.completed_at = task.completed ? new Date().toISOString() : null;
             
             await saveTasks();
             renderTasks();
             updateProjectCounts();
+            
+            // Update right panel if this task is being edited
+            if (editingTask && editingTask.id === taskId) {
+                const completedDate = task.completed_at ? new Date(task.completed_at).toLocaleString('sv-SE') : 'Ej avklarad';
+                document.getElementById('edit-task-completed').value = completedDate;
+            }
         }
         
         // Notes management
@@ -1686,6 +1931,7 @@
         
         // View management
         function showMainView() {
+            console.log('showMainView called'); // Debug
             currentView = 'main';
             document.getElementById('main-view').style.display = 'block';
             document.getElementById('inbox-view').style.display = 'none';
@@ -1695,10 +1941,14 @@
             document.querySelectorAll('.project-item').forEach(item => {
                 item.classList.remove('active');
             });
-            document.querySelector(`[data-project="${currentProject}"]`).classList.add('active');
+            const activeItem = document.querySelector(`[data-project="${currentProject}"]`);
+            if (activeItem) {
+                activeItem.classList.add('active');
+            }
         }
         
         function showInbox() {
+            console.log('showInbox called'); // Debug
             currentView = 'inbox';
             document.getElementById('main-view').style.display = 'none';
             document.getElementById('inbox-view').style.display = 'block';
@@ -1714,6 +1964,7 @@
         }
         
         function showSettings() {
+            console.log('showSettings called'); // Debug
             currentView = 'settings';
             document.getElementById('main-view').style.display = 'none';
             document.getElementById('inbox-view').style.display = 'none';
@@ -1728,6 +1979,8 @@
         
         // Project management
         function selectProject(projectId) {
+            console.log('selectProject called with:', projectId); // Debug
+            
             if (projectId === 'inbox') {
                 showInbox();
                 return;
@@ -1737,6 +1990,9 @@
                 showSettings();
                 return;
             }
+            
+            // Clear active filter when selecting project
+            clearFilter();
             
             currentProject = projectId;
             showMainView();
@@ -1867,9 +2123,17 @@
             const taskList = document.getElementById('task-list');
             taskList.innerHTML = '';
             
-            const filteredTasks = currentProject === 'all' 
-                ? tasks 
-                : tasks.filter(task => task.project === currentProject);
+            let filteredTasks;
+            
+            if (activeFilter) {
+                // Apply custom filter
+                filteredTasks = tasks.filter(task => matchesFilter(task, activeFilter));
+            } else {
+                // Apply project filter
+                filteredTasks = currentProject === 'all' 
+                    ? tasks 
+                    : tasks.filter(task => task.project === currentProject);
+            }
             
             filteredTasks
                 .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
@@ -1877,9 +2141,15 @@
                     const taskEl = createTaskElement(task);
                     taskList.appendChild(taskEl);
                 });
+                
+            if (filteredTasks.length === 0) {
+                taskList.innerHTML = '<div style="text-align: center; color: #999; padding: 40px;">Inga uppgifter matchar filtret</div>';
+            }
         }
         
         function createTaskElement(task) {
+            console.log('Creating task element for:', task); // Debug
+            
             const li = document.createElement('li');
             li.className = `task-item ${task.completed ? 'completed' : ''}`;
             li.setAttribute('draggable', 'true');
@@ -1895,23 +2165,41 @@
             
             // Build metadata array
             const metaItems = [];
+            
             if (task.priority && task.priority !== 'medium') {
                 metaItems.push(`<span class="task-badge ${priorityClass}">${task.priority}</span>`);
             }
+            
             if (assigneeText) {
                 metaItems.push(`<span>👤 ${assigneeText}</span>`);
             }
+            
             if (deadlineText) {
                 metaItems.push(`<span class="task-badge ${isOverdue ? 'priority-high' : ''}">${deadlineText}</span>`);
             }
+            
+            if (task.agile && task.agile !== 'later') {
+                const agileColors = {
+                    'now': 'priority-high',
+                    'next': 'priority-medium'
+                };
+                metaItems.push(`<span class="task-badge ${agileColors[task.agile] || ''}">${task.agile}</span>`);
+            }
+            
+            if (task.estimated_hours) {
+                metaItems.push(`<span>⏱️ ${task.estimated_hours}h</span>`);
+            }
+            
             if (task.notes && task.notes.length > 0) {
                 metaItems.push(`<span>💬 ${task.notes.length}</span>`);
             }
             
+            console.log('Task ID for onclick:', task.id); // Debug
+            
             li.innerHTML = `
                 <span class="drag-handle">⋮⋮</span>
                 ${task.type === 'todo' ? 
-                    `<div class="task-checkbox ${task.completed ? 'checked' : ''}" onclick="toggleTaskComplete('${task.id}')">${task.completed ? '✓' : ''}</div>` : 
+                    `<div class="task-checkbox ${task.completed ? 'checked' : ''}" onclick="event.stopPropagation(); toggleTaskComplete('${task.id}')">${task.completed ? '✓' : ''}</div>` : 
                     '<div style="width: 18px;"></div>'
                 }
                 <div class="task-content" onclick="editTask('${task.id}')">
@@ -1921,7 +2209,7 @@
                     }
                 </div>
                 <div class="task-actions">
-                    <button class="task-action-btn" onclick="deleteTask('${task.id}')" title="Ta bort">🗑️</button>
+                    <button class="task-action-btn" onclick="event.stopPropagation(); deleteTask('${task.id}')" title="Ta bort">🗑️</button>
                 </div>
             `;
             
@@ -1937,9 +2225,17 @@
             const upcomingTasks = [];
             const noDeadlineTasks = [];
             
-            const filteredTasks = currentProject === 'all' 
-                ? tasks 
-                : tasks.filter(task => task.project === currentProject);
+            let filteredTasks;
+            
+            if (activeFilter) {
+                // Apply custom filter
+                filteredTasks = tasks.filter(task => matchesFilter(task, activeFilter));
+            } else {
+                // Apply project filter
+                filteredTasks = currentProject === 'all' 
+                    ? tasks 
+                    : tasks.filter(task => task.project === currentProject);
+            }
             
             filteredTasks.forEach(task => {
                 if (!task.deadline) {
@@ -1990,9 +2286,19 @@
             
             // Get all unique assignees with open tasks
             const assigneeGroups = {};
-            const filteredTasks = currentProject === 'all' 
-                ? tasks.filter(t => !t.completed)
-                : tasks.filter(t => t.project === currentProject && !t.completed);
+            
+            let filteredTasks;
+            
+            if (activeFilter) {
+                // Apply custom filter and only show non-completed
+                filteredTasks = tasks.filter(task => matchesFilter(task, activeFilter) && !task.completed);
+            } else {
+                // Apply project filter and only show non-completed
+                const projectTasks = currentProject === 'all' 
+                    ? tasks 
+                    : tasks.filter(task => task.project === currentProject);
+                filteredTasks = projectTasks.filter(t => !t.completed);
+            }
             
             filteredTasks.forEach(task => {
                 const assignee = task.assignee || 'Ingen ansvarig';
@@ -2148,16 +2454,539 @@
         
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing app...'); // Debug
+            
             loadTasks();
+            loadSavedFilters();
+            
+            // Add event listener for new filter button
+            const newFilterBtn = document.getElementById('new-filter-btn');
+            console.log('New filter button:', newFilterBtn); // Debug
+            
+            if (newFilterBtn) {
+                newFilterBtn.addEventListener('click', function() {
+                    console.log('New filter button clicked!'); // Debug
+                    showFilterEditor();
+                });
+                console.log('Event listener added to new filter button'); // Debug
+            } else {
+                console.error('New filter button not found!');
+            }
+            
+            // Add click handlers to all project items
+            console.log('Adding project click handlers...'); // Debug
+            document.querySelectorAll('.project-item').forEach(item => {
+                const project = item.getAttribute('data-project');
+                console.log('Setting up project item:', project); // Debug
+                
+                if (project === 'inbox') {
+                    item.addEventListener('click', showInbox);
+                } else if (project === 'settings') {
+                    item.addEventListener('click', showSettings);
+                } else if (project) {
+                    item.addEventListener('click', function() {
+                        console.log('Project clicked:', project); // Debug
+                        selectProject(project);
+                    });
+                }
+            });
+            console.log('Project click handlers added'); // Debug
             
             // Add escape key handler for panels
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') {
                     hideTaskForm();
                     hideRightPanel();
+                    hideFilterEditor();
                 }
             });
+            
+            console.log('App initialization completed'); // Debug
         });
+        
+        // Filter management functions
+        async function loadSavedFilters() {
+            try {
+                const saved = localStorage.getItem('agoodapp_filters');
+                savedFilters = saved ? JSON.parse(saved) : [];
+                renderFilterList();
+            } catch (error) {
+                console.error('Error loading filters:', error);
+                savedFilters = [];
+            }
+        }
+        
+        async function saveSavedFilters() {
+            try {
+                localStorage.setItem('agoodapp_filters', JSON.stringify(savedFilters));
+            } catch (error) {
+                console.error('Error saving filters:', error);
+            }
+        }
+        
+        function showFilterEditor(filterId = null) {
+            console.log('showFilterEditor called with:', filterId); // Debug
+            
+            // Create modal if it doesn't exist
+            let modal = document.getElementById('filter-modal');
+            if (!modal) {
+                console.log('Modal not found, creating it...'); // Debug
+                modal = createFilterModal();
+                document.body.appendChild(modal);
+            }
+            
+            console.log('Modal element:', modal); // Debug
+            
+            const title = document.getElementById('filter-modal-title');
+            const deleteBtn = document.getElementById('delete-filter-btn');
+            
+            if (!modal) {
+                console.error('Filter modal still not found after creation!');
+                return;
+            }
+            
+            // Clear form
+            clearFilterForm();
+            
+            if (filterId) {
+                // Edit existing filter
+                const filter = savedFilters.find(f => f.id === filterId);
+                if (filter) {
+                    title.textContent = 'Redigera filter';
+                    deleteBtn.style.display = 'inline-block';
+                    populateFilterForm(filter);
+                    window.editingFilterId = filterId;
+                }
+            } else {
+                // New filter
+                title.textContent = 'Nytt filter';
+                deleteBtn.style.display = 'none';
+                window.editingFilterId = null;
+            }
+            
+            console.log('Adding show class to modal'); // Debug
+            modal.classList.add('show');
+            console.log('Modal classes now:', modal.className); // Debug
+        }
+        
+        function createFilterModal() {
+            const modal = document.createElement('div');
+            modal.id = 'filter-modal';
+            modal.className = 'filter-modal';
+            modal.innerHTML = `
+                <div class="filter-modal-content">
+                    <div class="filter-modal-header">
+                        <h3 id="filter-modal-title">Nytt filter</h3>
+                        <button class="close-panel-btn" onclick="hideFilterEditor()">✕</button>
+                    </div>
+                    
+                    <div class="filter-modal-body">
+                        <div class="form-group">
+                            <label>Filternamn</label>
+                            <input type="text" id="filter-name" placeholder="t.ex. Mina brådskande uppgifter">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Typ</label>
+                            <select id="filter-type" multiple>
+                                <option value="todo">Todo</option>
+                                <option value="note">Anteckning</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Ansvarig</label>
+                                <select id="filter-assignee" multiple>
+                                    <option value="mats">Mats</option>
+                                    <option value="anna">Anna</option>
+                                    <option value="erik">Erik</option>
+                                    <option value="sara">Sara</option>
+                                    <option value="johan">Johan</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Prioritet</label>
+                                <select id="filter-priority" multiple>
+                                    <option value="low">Låg</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">Hög</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Status</label>
+                                <select id="filter-status" multiple>
+                                    <option value="pending">Pågående</option>
+                                    <option value="completed">Avklarad</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Agilt</label>
+                                <select id="filter-agile" multiple>
+                                    <option value="now">Now</option>
+                                    <option value="next">Next</option>
+                                    <option value="later">Later</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Deadline från</label>
+                                <input type="date" id="filter-deadline-from">
+                            </div>
+                            <div class="form-group">
+                                <label>Deadline till</label>
+                                <input type="date" id="filter-deadline-to">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Skapad från</label>
+                                <input type="date" id="filter-created-from">
+                            </div>
+                            <div class="form-group">
+                                <label>Skapad till</label>
+                                <input type="date" id="filter-created-to">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Uppsk. tid från (h)</label>
+                                <input type="number" id="filter-estimated-from" step="0.25" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Uppsk. tid till (h)</label>
+                                <input type="number" id="filter-estimated-to" step="0.25" min="0">
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button class="btn btn-secondary" onclick="hideFilterEditor()">Avbryt</button>
+                            <button class="btn btn-danger" onclick="deleteFilter()" id="delete-filter-btn" style="display: none;">Radera filter</button>
+                            <button class="btn btn-primary" onclick="saveFilter()" id="save-filter-btn">Spara filter</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return modal;
+        }
+        
+        function hideFilterEditor() {
+            console.log('hideFilterEditor called'); // Debug
+            const modal = document.getElementById('filter-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                console.log('Removed show class from modal'); // Debug
+            }
+            window.editingFilterId = null;
+        }
+        
+        function clearFilterForm() {
+            console.log('clearFilterForm called'); // Debug
+            
+            try {
+                document.getElementById('filter-name').value = '';
+                
+                // Clear all multi-selects
+                const selects = ['filter-type', 'filter-assignee', 'filter-priority', 'filter-status', 'filter-agile'];
+                selects.forEach(id => {
+                    const select = document.getElementById(id);
+                    if (select) {
+                        Array.from(select.options).forEach(option => option.selected = false);
+                    } else {
+                        console.log('Select not found:', id);
+                    }
+                });
+                
+                // Clear date inputs
+                const dateFields = ['filter-deadline-from', 'filter-deadline-to', 'filter-created-from', 'filter-created-to', 'filter-estimated-from', 'filter-estimated-to'];
+                dateFields.forEach(id => {
+                    const field = document.getElementById(id);
+                    if (field) {
+                        field.value = '';
+                    } else {
+                        console.log('Date field not found:', id);
+                    }
+                });
+                
+                console.log('clearFilterForm completed successfully'); // Debug
+            } catch (error) {
+                console.error('Error in clearFilterForm:', error);
+            }
+        }
+        
+        function populateFilterForm(filter) {
+            document.getElementById('filter-name').value = filter.name;
+            
+            // Populate multi-selects
+            if (filter.criteria.type) {
+                const typeSelect = document.getElementById('filter-type');
+                filter.criteria.type.forEach(value => {
+                    const option = typeSelect.querySelector(`option[value="${value}"]`);
+                    if (option) option.selected = true;
+                });
+            }
+            
+            if (filter.criteria.assignee) {
+                const assigneeSelect = document.getElementById('filter-assignee');
+                filter.criteria.assignee.forEach(value => {
+                    const option = assigneeSelect.querySelector(`option[value="${value}"]`);
+                    if (option) option.selected = true;
+                });
+            }
+            
+            if (filter.criteria.priority) {
+                const prioritySelect = document.getElementById('filter-priority');
+                filter.criteria.priority.forEach(value => {
+                    const option = prioritySelect.querySelector(`option[value="${value}"]`);
+                    if (option) option.selected = true;
+                });
+            }
+            
+            if (filter.criteria.status) {
+                const statusSelect = document.getElementById('filter-status');
+                filter.criteria.status.forEach(value => {
+                    const option = statusSelect.querySelector(`option[value="${value}"]`);
+                    if (option) option.selected = true;
+                });
+            }
+            
+            if (filter.criteria.agile) {
+                const agileSelect = document.getElementById('filter-agile');
+                filter.criteria.agile.forEach(value => {
+                    const option = agileSelect.querySelector(`option[value="${value}"]`);
+                    if (option) option.selected = true;
+                });
+            }
+            
+            // Populate date inputs
+            if (filter.criteria.deadlineFrom) document.getElementById('filter-deadline-from').value = filter.criteria.deadlineFrom;
+            if (filter.criteria.deadlineTo) document.getElementById('filter-deadline-to').value = filter.criteria.deadlineTo;
+            if (filter.criteria.createdFrom) document.getElementById('filter-created-from').value = filter.criteria.createdFrom;
+            if (filter.criteria.createdTo) document.getElementById('filter-created-to').value = filter.criteria.createdTo;
+            if (filter.criteria.estimatedFrom) document.getElementById('filter-estimated-from').value = filter.criteria.estimatedFrom;
+            if (filter.criteria.estimatedTo) document.getElementById('filter-estimated-to').value = filter.criteria.estimatedTo;
+        }
+        
+        function getSelectedValues(selectId) {
+            const select = document.getElementById(selectId);
+            return Array.from(select.selectedOptions).map(option => option.value);
+        }
+        
+        async function saveFilter() {
+            const name = document.getElementById('filter-name').value.trim();
+            if (!name) {
+                alert('Ange ett namn för filtret');
+                return;
+            }
+            
+            const criteria = {
+                type: getSelectedValues('filter-type'),
+                assignee: getSelectedValues('filter-assignee'),
+                priority: getSelectedValues('filter-priority'),
+                status: getSelectedValues('filter-status'),
+                agile: getSelectedValues('filter-agile'),
+                deadlineFrom: document.getElementById('filter-deadline-from').value || null,
+                deadlineTo: document.getElementById('filter-deadline-to').value || null,
+                createdFrom: document.getElementById('filter-created-from').value || null,
+                createdTo: document.getElementById('filter-created-to').value || null,
+                estimatedFrom: parseFloat(document.getElementById('filter-estimated-from').value) || null,
+                estimatedTo: parseFloat(document.getElementById('filter-estimated-to').value) || null
+            };
+            
+            const filter = {
+                id: window.editingFilterId || generateId(),
+                name: name,
+                criteria: criteria,
+                created_at: window.editingFilterId ? 
+                    savedFilters.find(f => f.id === window.editingFilterId).created_at : 
+                    new Date().toISOString()
+            };
+            
+            if (window.editingFilterId) {
+                // Update existing filter
+                const index = savedFilters.findIndex(f => f.id === window.editingFilterId);
+                if (index !== -1) {
+                    savedFilters[index] = filter;
+                }
+            } else {
+                // Add new filter
+                savedFilters.push(filter);
+            }
+            
+            await saveSavedFilters();
+            renderFilterList();
+            hideFilterEditor();
+        }
+        
+        async function deleteFilter() {
+            if (!window.editingFilterId) return;
+            
+            if (!confirm('Är du säker på att du vill radera detta filter?')) return;
+            
+            savedFilters = savedFilters.filter(f => f.id !== window.editingFilterId);
+            
+            // Clear active filter if it was the deleted one
+            if (activeFilter && activeFilter.id === window.editingFilterId) {
+                activeFilter = null;
+            }
+            
+            await saveSavedFilters();
+            renderFilterList();
+            renderTasks();
+            hideFilterEditor();
+        }
+        
+        function renderFilterList() {
+            const filterList = document.getElementById('filter-list');
+            filterList.innerHTML = '';
+            
+            // Sort filters alphabetically
+            const sortedFilters = [...savedFilters].sort((a, b) => a.name.localeCompare(b.name));
+            
+            sortedFilters.forEach(filter => {
+                const filterEl = document.createElement('div');
+                filterEl.className = `filter-item ${activeFilter && activeFilter.id === filter.id ? 'active' : ''}`;
+                filterEl.innerHTML = `
+                    <span class="icon">🔍</span>
+                    <span class="name">${filter.name}</span>
+                    <div class="actions">
+                        <button class="filter-action-btn" onclick="editFilter('${filter.id}')" title="Redigera">✏️</button>
+                    </div>
+                `;
+                
+                filterEl.addEventListener('click', function(e) {
+                    if (!e.target.classList.contains('filter-action-btn')) {
+                        applyFilter(filter);
+                    }
+                });
+                
+                filterList.appendChild(filterEl);
+            });
+        }
+        
+        function editFilter(filterId) {
+            showFilterEditor(filterId);
+        }
+        
+        function applyFilter(filter) {
+            activeFilter = filter;
+            
+            // Update active state in UI
+            document.querySelectorAll('.filter-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+            
+            // Update project selection to show we're filtering
+            document.querySelectorAll('.project-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Update main title
+            document.getElementById('main-title').textContent = `Filter: ${filter.name}`;
+            
+            showMainView();
+            renderTasks();
+        }
+        
+        function clearFilter() {
+            activeFilter = null;
+            
+            // Clear filter selection
+            document.querySelectorAll('.filter-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Restore project selection
+            selectProject(currentProject);
+        }
+        
+        function matchesFilter(task, filter) {
+            const criteria = filter.criteria;
+            
+            // Type filter
+            if (criteria.type.length > 0 && !criteria.type.includes(task.type)) {
+                return false;
+            }
+            
+            // Assignee filter
+            if (criteria.assignee.length > 0 && !criteria.assignee.includes(task.assignee)) {
+                return false;
+            }
+            
+            // Priority filter
+            if (criteria.priority.length > 0 && !criteria.priority.includes(task.priority)) {
+                return false;
+            }
+            
+            // Status filter
+            if (criteria.status.length > 0) {
+                const taskStatus = task.completed ? 'completed' : 'pending';
+                if (!criteria.status.includes(taskStatus)) {
+                    return false;
+                }
+            }
+            
+            // Agile filter
+            if (criteria.agile.length > 0 && !criteria.agile.includes(task.agile)) {
+                return false;
+            }
+            
+            // Deadline filters
+            if (criteria.deadlineFrom || criteria.deadlineTo) {
+                if (!task.deadline) return false;
+                
+                const taskDeadline = new Date(task.deadline);
+                
+                if (criteria.deadlineFrom) {
+                    const fromDate = new Date(criteria.deadlineFrom);
+                    if (taskDeadline < fromDate) return false;
+                }
+                
+                if (criteria.deadlineTo) {
+                    const toDate = new Date(criteria.deadlineTo);
+                    if (taskDeadline > toDate) return false;
+                }
+            }
+            
+            // Created date filters
+            if (criteria.createdFrom || criteria.createdTo) {
+                const taskCreated = new Date(task.created_at);
+                
+                if (criteria.createdFrom) {
+                    const fromDate = new Date(criteria.createdFrom);
+                    if (taskCreated < fromDate) return false;
+                }
+                
+                if (criteria.createdTo) {
+                    const toDate = new Date(criteria.createdTo);
+                    toDate.setHours(23, 59, 59, 999); // End of day
+                    if (taskCreated > toDate) return false;
+                }
+            }
+            
+            // Estimated time filters
+            if (criteria.estimatedFrom !== null || criteria.estimatedTo !== null) {
+                if (task.estimated_hours === null || task.estimated_hours === undefined) return false;
+                
+                if (criteria.estimatedFrom !== null && task.estimated_hours < criteria.estimatedFrom) {
+                    return false;
+                }
+                
+                if (criteria.estimatedTo !== null && task.estimated_hours > criteria.estimatedTo) {
+                    return false;
+                }
+            }
+            
+            return true;
+        }
     </script>
 </body>
 </html>
