@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@1.35.7/dist/umd/supabase.js"></script>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        .log {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #00ff00;
+            background: rgba(0, 255, 0, 0.1);
+        }
+        .error {
+            border-left-color: #ff0000;
+            background: rgba(255, 0, 0, 0.1);
+            color: #ff0000;
+        }
+        .success {
+            border-left-color: #00ff00;
+            background: rgba(0, 255, 0, 0.1);
+            color: #00ff00;
+        }
+        .warning {
+            border-left-color: #ffaa00;
+            background: rgba(255, 170, 0, 0.1);
+            color: #ffaa00;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 AGoodApp Supabase Connection Test</h1>
+    <div id="output"></div>
+    
+    <script>
+        const SUPABASE_URL = 'https://tazwiywfzpmyqbmmkhpc.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhendpeXdmenBteXFibW1raHBjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxOTg2NzMsImV4cCI6MjA3MTc3NDY3M30.GwC80boqAj4Z78qt3BIG-iau1QJuZiFe058vWtFBCxg';
+        
+        function log(message, type = 'log') {
+            const output = document.getElementById('output');
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            output.appendChild(div);
+            console.log(message);
+        }
+        
+        async function testSupabase() {
+            log('🚀 Starting Supabase connection test...', 'log');
+            
+            // Test 1: Check if Supabase library loaded
+            log('📚 Test 1: Checking Supabase library...', 'log');
+            if (typeof supabase !== 'undefined') {
+                log('✅ Supabase library loaded successfully', 'success');
+            } else {
+                log('❌ Supabase library failed to load', 'error');
+                return;
+            }
+            
+            // Test 2: Create client
+            log('🔧 Test 2: Creating Supabase client...', 'log');
+            let client;
+            try {
+                client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                log('✅ Supabase client created successfully', 'success');
+            } catch (error) {
+                log(`❌ Failed to create Supabase client: ${error.message}`, 'error');
+                return;
+            }
+            
+            // Test 3: Test basic fetch to URL
+            log('🌐 Test 3: Testing basic URL accessibility...', 'log');
+            try {
+                const response = await fetch(SUPABASE_URL);
+                log(`✅ URL is accessible. Status: ${response.status}`, 'success');
+            } catch (error) {
+                log(`❌ URL not accessible: ${error.message}`, 'error');
+                log('🔍 This might be a DNS, CORS, or network issue', 'warning');
+            }
+            
+            // Test 4: Test auth endpoint
+            log('🔐 Test 4: Testing auth endpoint...', 'log');
+            try {
+                const { data: { session }, error } = await client.auth.getSession();
+                if (error) {
+                    log(`⚠️ Auth test returned error: ${error.message}`, 'warning');
+                } else {
+                    log('✅ Auth endpoint accessible', 'success');
+                }
+            } catch (error) {
+                log(`❌ Auth test failed: ${error.message}`, 'error');
+            }
+            
+            // Test 5: Test database connection
+            log('🗄️ Test 5: Testing database connection...', 'log');
+            try {
+                const { data, error } = await client.from('tasks').select('count').limit(1);
+                if (error) {
+                    if (error.message.includes('relation "tasks" does not exist')) {
+                        log('⚠️ Tasks table does not exist (expected for new project)', 'warning');
+                    } else {
+                        log(`⚠️ Database query returned error: ${error.message}`, 'warning');
+                    }
+                } else {
+                    log('✅ Database connection successful', 'success');
+                }
+            } catch (error) {
+                log(`❌ Database test failed: ${error.message}`, 'error');
+            }
+            
+            // Test 6: Network info
+            log('📡 Test 6: Network information...', 'log');
+            log(`🌍 User Agent: ${navigator.userAgent}`, 'log');
+            log(`📍 Location: ${window.location.href}`, 'log');
+            log(`🔒 Protocol: ${window.location.protocol}`, 'log');
+            
+            if (navigator.connection) {
+                log(`📶 Connection Type: ${navigator.connection.effectiveType}`, 'log');
+                log(`📊 Downlink: ${navigator.connection.downlink} Mbps`, 'log');
+            }
+            
+            log('🏁 Connection test completed!', 'success');
+        }
+        
+        // Start test when page loads
+        window.addEventListener('DOMContentLoaded', testSupabase);
+    </script>
+</body>
+</html>
