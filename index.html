@@ -660,6 +660,20 @@
         function showLoading() {
             const el = document.getElementById('auth-loading');
             if (el) el.classList.add('show');
+            
+            // Safety timeout - hide loading after 10 seconds max
+            setTimeout(() => {
+                if (el && el.classList.contains('show')) {
+                    console.log('Loading timeout reached, hiding loading indicator');
+                    hideLoading();
+                    // If still no session, show login
+                    supabaseClient.auth.getSession().then(({ data }) => {
+                        if (!data?.session) {
+                            showLogin();
+                        }
+                    });
+                }
+            }, 10000);
         }
 
         function hideLoading() {
@@ -768,8 +782,9 @@
                                                    !window.open;
                             
                             if (isVSCodeBrowser) {
-                                // Open OAuth in external browser
-                                const authUrl = `https://tazwiywfzpmyqbmmkhpc.supabase.co/auth/v1/authorize?provider=github&redirect_to=${encodeURIComponent(origin)}`;
+                                // For development, use localhost instead of production URL
+                                const devOrigin = window.location.origin.includes('localhost') ? window.location.origin : 'http://localhost:5174';
+                                const authUrl = `https://tazwiywfzpmyqbmmkhpc.supabase.co/auth/v1/authorize?provider=github&redirect_to=${encodeURIComponent(devOrigin)}`;
                                 console.log('Opening GitHub OAuth in external browser:', authUrl);
                                 alert('OAuth öppnas i din standardwebbläsare. Efter inloggning kommer du tillbaka hit automatiskt.');
                                 window.open(authUrl, '_blank');
@@ -809,8 +824,9 @@
                                                    !window.open;
                             
                             if (isVSCodeBrowser) {
-                                // Open OAuth in external browser
-                                const authUrl = `https://tazwiywfzpmyqbmmkhpc.supabase.co/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(origin)}`;
+                                // For development, use localhost instead of production URL
+                                const devOrigin = window.location.origin.includes('localhost') ? window.location.origin : 'http://localhost:5174';
+                                const authUrl = `https://tazwiywfzpmyqbmmkhpc.supabase.co/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(devOrigin)}`;
                                 console.log('Opening Google OAuth in external browser:', authUrl);
                                 alert('OAuth öppnas i din standardwebbläsare. Efter inloggning kommer du tillbaka hit automatiskt.');
                                 window.open(authUrl, '_blank');
@@ -839,6 +855,20 @@
             // Session check and auth state subscription
         supabaseClient.auth.getSession().then(({ data }) => {
                 const session = data?.session || null;
+                
+                // Check for OAuth tokens in URL fragment (hash)
+                const hash = window.location.hash;
+                if (hash && hash.includes('access_token')) {
+                    console.log('OAuth tokens detected in URL, processing...');
+                    // Let Supabase handle the OAuth callback automatically
+                    // Remove tokens from URL for security
+                    const url = new URL(window.location);
+                    url.hash = '';
+                    window.history.replaceState({}, '', url);
+                    // Show loading while processing
+                    showLoading();
+                    return; // Let onAuthStateChange handle the rest
+                }
                 
                 // Check for URL parameters
                 const urlParams = new URLSearchParams(window.location.search);
