@@ -3,945 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AGoodApp - Task & Notes Manager</title>
+    <title>AGoodApp</title>
+    <script>
+        // Initialize theme early to avoid FOUC
+        (function () {
+            try {
+                const saved = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (saved === 'dark' || (!saved && prefersDark)) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            } catch (_) {
+                // noop
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="/src/styles.css">
     <style>
         * {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: #f8f9fa;
-            color: #1d1d1f;
-            line-height: 1.4;
-        }
-
-        .app-container {
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            width: 280px;
-            background: #fff;
-            border-right: 1px solid #e5e5e7;
-            display: flex;
-            flex-direction: column;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-
-        .sidebar.collapsed {
-            width: 60px;
-        }
-
-        .sidebar-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid #e5e5e7;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .sidebar-header h1 {
-            font-size: 18px;
-            font-weight: 600;
-            color: #1d1d1f;
-        }
-
-        .hamburger-btn {
-            background: none;
-            border: none;
-            font-size: 18px;
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 4px;
-            transition: background-color 0.2s;
-        }
-
-        .hamburger-btn:hover {
-            background: #f5f5f7;
-        }
-
-        .sidebar.collapsed .sidebar-header h1 {
-            display: none;
-        }
-
-        /* Project List */
-        .project-list {
-            flex: 1;
-            padding: 8px 0;
-            overflow-y: auto;
-        }
-
-        .project-item {
-            display: flex;
-            align-items: center;
-            padding: 8px 20px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            font-size: 14px;
-            color: #424245;
-        }
-
-        .project-item:hover {
-            background: #f5f5f7;
-        }
-
-        .project-item.active {
-            background: #007aff;
-            color: white;
-        }
-
-        .project-item .icon {
-            margin-right: 12px;
-            font-size: 16px;
-            width: 20px;
-            text-align: center;
-        }
-
-        .project-item .name {
-            flex: 1;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .project-item .count {
-            background: #e5e5e7;
-            color: #86868b;
             font-size: 12px;
-            padding: 2px 6px;
-            border-radius: 10px;
-            min-width: 18px;
-            text-align: center;
-        }
-
-        .project-item.active .count {
-            background: rgba(255, 255, 255, 0.3);
-            color: white;
-        }
-
-        .sidebar.collapsed .project-item .name,
-        .sidebar.collapsed .project-item .count {
-            display: none;
-        }
-
-        .sidebar.collapsed .project-item {
-            justify-content: center;
-            padding: 8px 20px;
-        }
-
-        .new-project {
-            padding: 8px 20px;
-            border-top: 1px solid #e5e5e7;
-        }
-
-        .new-project input {
-            width: 100%;
-            padding: 8px 12px;
-            border: 1px solid #d1d1d6;
-            border-radius: 8px;
-            font-size: 14px;
-            background: #fff;
-        }
-
-        .new-project input:focus {
-            outline: none;
-            border-color: #007aff;
-        }
-
-        .sidebar.collapsed .new-project {
-            display: none;
-        }
-
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: #fff;
-            position: relative;
-        }
-
-        .main-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid #e5e5e7;
-        }
-
-        .main-header h2 {
-            font-size: 28px;
-            font-weight: 700;
-            color: #1d1d1f;
-            margin-bottom: 8px;
-        }
-
-        .status-indicator {
-            position: absolute;
-            top: 16px;
-            right: 24px;
-            padding: 6px 12px;
-            border-radius: 16px;
-            font-size: 12px;
-            font-weight: 500;
-            background: #34c759;
-            color: white;
-        }
-
-        .status-indicator.local {
-            background: #ff9500;
-        }
-
-        /* Tabs */
-        .tabs {
-            display: flex;
-            padding: 0 24px;
-            border-bottom: 1px solid #e5e5e7;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .tabs-left {
-            display: flex;
-        }
-
-        .tab {
-            padding: 12px 16px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            color: #86868b;
-            border-bottom: 2px solid transparent;
-            transition: all 0.2s;
-        }
-
-        .tab.active {
-            color: #007aff;
-            border-bottom-color: #007aff;
-        }
-
-        .tab:hover {
-            color: #007aff;
-        }
-
-        .add-task-btn {
-            background: #007aff;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 8px 12px;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
             transition: background-color 0.2s;
         }
+        
+        /* Panels & drawers visibility */
+        .task-form { display: none; }
+        .task-form.show { display: block; }
 
-        .add-task-btn:hover {
-            background: #0056cc;
-        }
-
-        /* Content Area */
-        .content-area {
-            flex: 1;
-            padding: 24px;
-            overflow-y: auto;
-        }
-
-        /* Task Form */
-        .task-form {
-            background: #fff;
-            border: 1px solid #e5e5e7;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 24px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-            display: none;
-        }
-
-        .task-form.show {
-            display: block;
-        }
-
-        .task-form h3 {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 16px;
-            color: #1d1d1f;
-        }
-
-        .form-row {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .form-group {
-            flex: 1;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 6px;
-            color: #424245;
-        }
-
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #d1d1d6;
-            border-radius: 8px;
-            font-size: 14px;
-            background: #fff;
-            transition: border-color 0.2s;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: #007aff;
-        }
-
-        .type-switch {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .switch {
-            position: relative;
-            width: 44px;
-            height: 24px;
-            background: #e5e5e7;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .switch.active {
-            background: #007aff;
-        }
-
-        .switch::after {
-            content: '';
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 20px;
-            height: 20px;
-            background: white;
-            border-radius: 50%;
-            transition: transform 0.2s;
-        }
-
-        .switch.active::after {
-            transform: translateX(20px);
-        }
-
-        .form-actions {
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-        }
-
-        .btn {
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: none;
-        }
-
-        .btn-primary {
-            background: #007aff;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #0056cc;
-        }
-
-        .btn-secondary {
-            background: #f5f5f7;
-            color: #424245;
-            border: 1px solid #d1d1d6;
-        }
-
-        .btn-secondary:hover {
-            background: #e5e5e7;
-        }
-
-        .add-task-btn {
-            background: #007aff;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            margin-bottom: 24px;
-            transition: background-color 0.2s;
-        }
-
-        .add-task-btn:hover {
-            background: #0056cc;
-        }
-
-        /* Task List */
-        .task-list {
-            list-style: none;
-        }
-
-        .task-item {
-            background: transparent;
-            border: none;
-            padding: 6px 0;
-            margin-bottom: 2px;
-            cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            border-radius: 6px;
-        }
-
-        .task-item:hover {
-            background: #f8f9fa;
-        }
-
-        .task-item.completed {
-            opacity: 0.6;
-        }
-
-        .task-item.completed .task-content {
-            text-decoration: line-through;
-        }
-
-        .drag-handle {
-            color: #c7c7cc;
-            cursor: grab;
-            opacity: 0;
-            transition: opacity 0.2s;
-            font-size: 12px;
-        }
-
-        .task-item:hover .drag-handle {
-            opacity: 1;
-        }
-
-        .task-checkbox {
-            width: 18px;
-            height: 18px;
-            border: 2px solid #d1d1d6;
-            border-radius: 4px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-            flex-shrink: 0;
-        }
-
-        .task-checkbox.checked {
-            background: #34c759;
-            border-color: #34c759;
-            color: white;
-        }
-
-        .task-content {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .task-title {
-            font-size: 15px;
-            font-weight: 400;
-            color: #1d1d1f;
-        }
-
-        .task-meta {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 12px;
-            color: #86868b;
-        }
-
-        .task-badge {
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 500;
-        }
-
-        .priority-high {
-            background: #ff3b30;
-            color: white;
-        }
-
-        .priority-medium {
-            background: #ff9500;
-            color: white;
-        }
-
-        .priority-low {
-            background: #34c759;
-            color: white;
-        }
-
-        .task-actions {
-            display: flex;
-            gap: 8px;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .task-item:hover .task-actions {
-            opacity: 1;
-        }
-
-        .task-action-btn {
-            background: none;
-            border: none;
-            padding: 4px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.2s;
-        }
-
-        .task-action-btn:hover {
-            background: #f5f5f7;
-        }
-
-        /* Right Panel */
         .right-panel {
             position: fixed;
             top: 0;
-            right: -400px;
-            width: 400px;
-            height: 100vh;
-            background: #fff;
-            border-left: 1px solid #e5e5e7;
-            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
-            transition: right 0.3s ease;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .right-panel.show {
             right: 0;
+            height: 100vh;
+            width: 380px;
+            max-width: 90vw;
+            background: #ffffff;
+            border-left: 1px solid #e5e7eb; /* gray-200 */
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+            transform: translateX(100%);
+            transition: transform 200ms ease;
+            z-index: 50;
         }
+        .right-panel.show { transform: translateX(0); }
+        .right-panel-header { display:flex; align-items:center; justify-content:space-between; padding: 12px 16px; border-bottom: 1px solid #e5e7eb; }
+        .right-panel-content { height: calc(100vh - 54px); overflow: auto; padding: 12px 16px; }
 
-        .right-panel-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid #e5e5e7;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .right-panel-header h3 {
-            font-size: 18px;
-            font-weight: 600;
-            color: #1d1d1f;
-        }
-
-        .close-panel-btn {
-            background: none;
-            border: none;
-            font-size: 18px;
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 4px;
-            transition: background-color 0.2s;
-        }
-
-        .close-panel-btn:hover {
-            background: #f5f5f7;
-        }
-
-        .right-panel-content {
-            flex: 1;
-            padding: 24px;
-            overflow-y: auto;
-        }
-
-        /* Notes Section */
-        .notes-section {
-            margin-top: 24px;
-        }
-
-        .notes-section h4 {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 16px;
-            color: #1d1d1f;
-        }
-
-        .note-item {
-            background: #f8f9fa;
-            border: 1px solid #e5e5e7;
-            border-radius: 8px;
-            padding: 12px 16px;
-            margin-bottom: 8px;
-            position: relative;
-        }
-
-        .note-content {
-            font-size: 14px;
-            line-height: 1.5;
-            color: #424245;
-            margin-bottom: 8px;
-        }
-
-        .note-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 12px;
-            color: #86868b;
-        }
-
-        .note-actions {
-            display: flex;
-            gap: 8px;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .note-item:hover .note-actions {
-            opacity: 1;
-        }
-
-        .mention {
-            color: #007aff;
-            background: rgba(0, 122, 255, 0.1);
-            padding: 1px 4px;
-            border-radius: 3px;
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .mention:hover {
-            background: rgba(0, 122, 255, 0.2);
-        }
-
-        .new-note-input {
-            width: 100%;
-            min-height: 36px;
-            max-height: 120px;
-            padding: 8px 12px;
-            border: 1px solid #d1d1d6;
-            border-radius: 8px;
-            font-size: 14px;
-            font-family: inherit;
-            resize: vertical;
-            transition: border-color 0.2s;
-        }
-
-        .new-note-input:focus {
-            outline: none;
-            border-color: #007aff;
-            min-height: 80px;
-        }
-
-        .new-note-actions {
-            display: flex;
-            gap: 8px;
-            justify-content: flex-end;
-            margin-top: 8px;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .new-note-input:focus + .new-note-actions,
-        .new-note-actions:hover {
-            opacity: 1;
-        }
-
-        /* Inbox styles */
-        .inbox-content {
-            padding: 24px;
-        }
-
-        .inbox-filters {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 24px;
-        }
-
-        .filter-btn {
-            padding: 8px 16px;
-            border: 1px solid #d1d1d6;
-            background: #fff;
-            border-radius: 8px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .filter-btn.active {
-            background: #007aff;
-            color: white;
-            border-color: #007aff;
-        }
-
-        .notification-item {
-            background: #fff;
-            border: 1px solid #e5e5e7;
-            border-radius: 12px;
-            padding: 16px 20px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
-        }
-
-        .notification-item:hover {
-            border-color: #007aff;
-            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.1);
-        }
-
-        .notification-item.unread {
-            border-left: 4px solid #007aff;
-        }
-
-        .notification-content {
-            margin-bottom: 8px;
-        }
-
-        .notification-task-link {
-            color: #007aff;
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .notification-actions {
-            display: flex;
-            gap: 8px;
-            justify-content: flex-end;
-        }
-
-        /* Calendar View */
-        .calendar-section {
-            margin-bottom: 32px;
-        }
-
-        .calendar-section h3 {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .calendar-section .task-count {
-            background: #e5e5e7;
-            color: #86868b;
-            font-size: 12px;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-weight: 400;
-        }
-
-        .overdue .task-count {
-            background: #ff3b30;
-            color: white;
-        }
-
-        .today .task-count {
-            background: #ff9500;
-            color: white;
-        }
-
-        .upcoming .task-count {
-            background: #34c759;
-            color: white;
-        }
-
-        /* Settings */
-        .settings-content {
-            padding: 24px;
-        }
-
-        .settings-section {
-            margin-bottom: 32px;
-        }
-
-        .settings-section h3 {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 16px;
-            color: #1d1d1f;
-        }
-
-        .settings-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-
-        .btn-danger {
-            background: #ff3b30;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #d70015;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .sidebar {
-                position: absolute;
-                left: -280px;
-                z-index: 100;
-                height: 100vh;
-            }
-
-            .sidebar.show {
-                left: 0;
-            }
-
-            .right-panel {
-                width: 100vw;
-                right: -100vw;
-            }
-
-            .main-content {
-                margin-left: 0;
-            }
-
-            .form-row {
-                flex-direction: column;
-            }
-        }
-        
-        /* Filter Modal */
+        /* Filter modal */
         .filter-modal {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 2000;
+            inset: 0;
             display: none;
             align-items: center;
             justify-content: center;
+            background: rgba(0,0,0,0.4);
+            z-index: 60;
         }
-        
-        .filter-modal.show {
-            display: flex;
-        }
-        
+        .filter-modal.show { display: flex; }
         .filter-modal-content {
-            background: white;
-            border-radius: 12px;
-            max-width: 600px;
-            width: 90vw;
-            max-height: 80vh;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            width: min(640px, calc(100vw - 2rem));
+            max-height: calc(100vh - 2rem);
+            overflow: auto;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
         }
-        
-        .filter-modal-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid #e5e5e7;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .filter-modal-header h3 {
-            font-size: 18px;
-            font-weight: 600;
-            color: #1d1d1f;
-        }
-        
-        .filter-modal-body {
-            padding: 24px;
-            overflow-y: auto;
-        }
-        
-        .filter-section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .filter-item {
-            display: flex;
-            align-items: center;
-            padding: 8px 20px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            font-size: 14px;
-            color: #424245;
-        }
-        
-        .filter-item:hover {
-            background: #f5f5f7;
-        }
-        
-        .filter-item.active {
-            background: #007aff;
-            color: white;
-        }
-        
-        .filter-item .icon {
-            margin-right: 12px;
-            font-size: 16px;
-            width: 20px;
-            text-align: center;
-        }
-        
-        .filter-item .name {
-            flex: 1;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        
-        .filter-item .actions {
-            display: flex;
-            gap: 4px;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        
-        .filter-item:hover .actions {
-            opacity: 1;
-        }
-        
-        .filter-action-btn {
-            background: none;
-            border: none;
-            padding: 2px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 12px;
-            transition: background-color 0.2s;
-        }
-        
+        .filter-modal-header { display:flex; align-items:center; justify-content:space-between; padding: 12px 16px; border-bottom: 1px solid #e5e7eb; }
+        .filter-modal-body { padding: 12px 16px; }
+
         .filter-action-btn:hover {
             background: rgba(255, 255, 255, 0.2);
         }
@@ -953,6 +85,20 @@
         .sidebar.collapsed .filter-section {
             display: none;
         }
+
+        /* Small styling for hamburger */
+        .hamburger-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+            background: #ffffff;
+            cursor: pointer;
+        }
+        .hamburger-btn:hover { background: #f3f4f6; }
         
         /* Multiple select styling */
         select[multiple] {
@@ -965,54 +111,78 @@
             color: white;
         }
     </style>
+    <script type="module" src="./src/bridge/calendar-bridge.js"></script>
+    <script type="module">
+        import { supabaseClient } from './src/lib/supabaseClient.js';
+        // Expose client to legacy inline script and signal readiness
+        window.supabaseClient = supabaseClient;
+        document.dispatchEvent(new Event('supabase-ready'));
+    </script>
 </head>
-<body>
-    <div class="app-container">
+<body class="min-h-screen bg-gray-50 text-gray-900 antialiased">
+    <div id="login-view" class="hidden max-w-md mx-auto mt-16 p-6 border border-gray-200 rounded-lg bg-white shadow-sm" style="display:none; max-width: 420px; margin: 60px auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 8px;">
+        <h2 style="margin-bottom: 12px;">Logga in</h2>
+        <p style="margin-bottom: 12px; color:#666;">Du måste logga in för att använda appen.</p>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom: 10px;">
+            <input id="login-email" type="email" placeholder="E-post för magic link" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:6px;">
+            <button id="login-magic-btn" class="btn btn-primary bg-blue-600 hover:bg-blue-700 text-white">Skicka länk</button>
+        </div>
+        <button id="login-github-btn" class="btn btn-secondary bg-gray-700 hover:bg-gray-800 text-white" style="width:100%;">Logga in med GitHub</button>
+    </div>
+
+        <!-- Top bar -->
+    <header class="topbar w-full border-b border-gray-200">
+            <div class="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <button class="hamburger-btn icon-btn pressable" onclick="toggleSidebar()" title="Meny">☰</button>
+                    <span class="text-xl font-semibold">AGoodApp</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <!-- Primary action lives in main content header; removed duplicate here -->
+                </div>
+            </div>
+        </header>
+
+    <div class="app-container grid grid-cols-[260px_1fr] gap-6 mx-auto max-w-7xl px-4 py-6" id="app-view">
         <!-- Sidebar -->
-        <div class="sidebar" id="sidebar">
+    <div class="sidebar bg-white border border-gray-200 rounded-lg p-4 shadow-sm flex flex-col" id="sidebar">
             <div class="sidebar-header">
-                <h1>AGoodApp</h1>
-                <button class="hamburger-btn" onclick="toggleSidebar()">☰</button>
+                <!-- Simplified: hamburger moved to top bar -->
             </div>
             
-            <div class="project-list">
-                <div class="project-item active" data-project="all">
-                    <span class="icon">📋</span>
-                    <span class="name">Alla uppgifter</span>
-                    <span class="count" id="count-all">0</span>
+            <div class="project-list space-y-1">
+                <div class="project-item active flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50 cursor-pointer" data-project="all">
+                    <span class="flex items-center gap-2"><span class="icon">📋</span><span class="name">Alla uppgifter</span></span>
+                    <span class="count text-xs inline-flex min-w-5 justify-center" id="count-all">0</span>
                 </div>
                 
-                <div class="project-item" data-project="inbox">
-                    <span class="icon">🔔</span>
-                    <span class="name">Inbox</span>
-                    <span class="count" id="count-inbox">0</span>
+                <div class="project-item flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50 cursor-pointer" data-project="inbox">
+                    <span class="flex items-center gap-2"><span class="icon">🔔</span><span class="name">Inbox</span></span>
+                    <span class="count text-xs inline-flex min-w-5 justify-center" id="count-inbox">0</span>
                 </div>
                 
-                <div class="project-item" data-project="work">
-                    <span class="icon">💼</span>
-                    <span class="name">Arbete</span>
-                    <span class="count" id="count-work">0</span>
+                <div class="project-item flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50 cursor-pointer" data-project="work">
+                    <span class="flex items-center gap-2"><span class="icon">💼</span><span class="name">Arbete</span></span>
+                    <span class="count text-xs inline-flex min-w-5 justify-center" id="count-work">0</span>
                 </div>
                 
-                <div class="project-item" data-project="personal">
-                    <span class="icon">🏠</span>
-                    <span class="name">Personligt</span>
-                    <span class="count" id="count-personal">0</span>
+                <div class="project-item flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50 cursor-pointer" data-project="personal">
+                    <span class="flex items-center gap-2"><span class="icon">🏠</span><span class="name">Personligt</span></span>
+                    <span class="count text-xs inline-flex min-w-5 justify-center" id="count-personal">0</span>
                 </div>
                 
-                <div class="project-item" data-project="settings">
-                    <span class="icon">⚙️</span>
-                    <span class="name">Inställningar</span>
-                    <span class="count"></span>
+                <div class="project-item flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50 cursor-pointer" data-project="settings">
+                    <span class="flex items-center gap-2"><span class="icon">⚙️</span><span class="name">Inställningar</span></span>
+                    <span class="count text-xs inline-flex min-w-5 justify-center"></span>
                 </div>
                 
                 <!-- Saved Filters -->
-                <div class="filter-section" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e5e7;" id="saved-filters">
-                    <div class="filter-section-header" style="padding: 0 20px 10px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 12px; font-weight: 600; color: #86868b; text-transform: uppercase; letter-spacing: 0.5px;">Filter</span>
-                        <button id="new-filter-btn" class="btn" style="font-size: 12px; padding: 4px 8px; background: none; border: 1px solid #d1d1d6; border-radius: 4px; cursor: pointer;">+ Nytt</button>
+                <div class="filter-section mt-5 pt-4 border-t border-gray-200" id="saved-filters">
+                    <div class="filter-section-header px-5 pb-2 flex justify-between items-center">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Filter</span>
+                        <button id="new-filter-btn" class="btn text-xs px-2.5 py-1 rounded border border-gray-300 hover:bg-gray-100 cursor-pointer">+ Nytt</button>
                     </div>
-                    <div id="filter-list">
+                    <div id="filter-list" class="space-y-1 px-1">
                         <!-- Saved filters will be populated here -->
                     </div>
                 </div>
@@ -1021,24 +191,63 @@
             <div class="new-project">
                 <input type="text" placeholder="Nytt projekt..." onkeypress="handleNewProject(event)">
             </div>
+
+            <!-- User dropdown footer -->
+            <div class="mt-auto pt-4 border-t border-gray-200">
+                <div class="relative" id="user-dropdown">
+                    <button
+                        id="user-menu-button"
+                        type="button"
+                        class="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-100"
+                        aria-expanded="false"
+                        aria-haspopup="menu"
+                    >
+                        <div
+                            id="user-avatar"
+                            class="h-8 w-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-semibold"
+                        >
+                            G
+                        </div>
+                        <div class="flex-1 min-w-0 text-left">
+                            <div id="user-name" class="text-sm font-medium truncate">Gäst</div>
+                            <div id="user-email" class="text-xs text-gray-500 truncate">Ej inloggad</div>
+                        </div>
+                        <svg class="h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 011.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+
+                    <div
+                        id="user-menu-items"
+                        class="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg py-1 hidden z-10"
+                        role="menu"
+                        aria-labelledby="user-menu-button"
+                    >
+                        <button id="logout-dropdown-btn" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50">Logga ut</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Main Content -->
-        <div class="main-content">
+    <div class="main-content bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
             <div class="main-header">
-                <h2 id="main-title">Alla uppgifter</h2>
-                <div class="status-indicator" id="status-indicator">💾 Local Mode</div>
+                <h2 id="main-title" class="text-xl font-semibold">Alla uppgifter</h2>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button id="theme-toggle" class="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" title="Växla tema">🌓</button>
+                    <div class="status-indicator" id="status-indicator">💾 Local Mode</div>
+                </div>
             </div>
 
             <!-- Main Task View -->
             <div id="main-view">
-                <div class="tabs">
-                    <div class="tabs-left">
-                        <div class="tab active" onclick="switchTab('outline')">📋 Outline</div>
-                        <div class="tab" onclick="switchTab('calendar')">📅 Kalender</div>
-                        <div class="tab" onclick="switchTab('assignees')">👤 Vem?</div>
+                <div class="tabs flex items-center justify-between border-b border-gray-200 mb-4">
+                    <div class="tabs-left flex gap-1">
+                        <div class="tab active px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer" onclick="switchTab('outline')">📋 Outline</div>
+                        <div class="tab px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer" onclick="switchTab('calendar')">📅 Kalender</div>
+                        <div class="tab px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer" onclick="switchTab('assignees')">👤 Vem?</div>
                     </div>
-                    <button class="add-task-btn" onclick="showTaskForm()">+ Ny</button>
+                    <button class="add-task-btn btn btn-primary pressable hover-lift" onclick="showTaskForm()">+ Ny</button>
                 </div>
 
                 <div class="content-area">
@@ -1105,15 +314,25 @@
                             </div>
                         </div>
                         
-                        <div class="form-actions">
-                            <button class="btn btn-secondary" onclick="hideTaskForm()">Avbryt</button>
-                            <button class="btn btn-primary" onclick="saveTask()" id="save-btn">Lägg till</button>
+                        <div class="form-actions flex gap-2">
+                            <button class="btn btn-secondary px-3 py-2 rounded border border-gray-300 hover:bg-gray-100" onclick="hideTaskForm()">Avbryt</button>
+                            <button class="btn btn-primary px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700" onclick="saveTask()" id="save-btn">Lägg till</button>
                         </div>
                     </div>
 
                     <!-- Task List -->
                     <div id="outline-view">
-                        <ul class="task-list" id="task-list">
+                        <div class="inline-add">
+                            <div class="inline-add-input-wrapper">
+                                <div class="inline-add-icon">＋</div>
+                                <div class="inline-add-stack">
+                                    <textarea id="inline-add-input" rows="1" placeholder="Ny uppgift…  (tips: p:high  2025-09-01  imorgon  fredag  nästa måndag  @mats  #now)" onkeydown="handleInlineAddKeydown(event)" oninput="handleInlineAddInput(event)"></textarea>
+                                    <div id="inline-add-chips" class="inline-add-chips"></div>
+                                    <div id="inline-suggest" class="inline-suggest hidden" role="listbox" aria-label="Förslag"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <ul class="task-list space-y-2" id="task-list">
                             <!-- Tasks will be dynamically populated here -->
                         </ul>
                     </div>
@@ -1122,22 +341,22 @@
                     <div id="calendar-view" style="display: none;">
                         <div class="calendar-section overdue">
                             <h3>🔴 Försenade <span class="task-count" id="overdue-count">0</span></h3>
-                            <ul class="task-list" id="overdue-tasks"></ul>
+                            <ul class="task-list space-y-2" id="overdue-tasks"></ul>
                         </div>
                         
                         <div class="calendar-section today">
                             <h3>🟡 Idag <span class="task-count" id="today-count">0</span></h3>
-                            <ul class="task-list" id="today-tasks"></ul>
+                            <ul class="task-list space-y-2" id="today-tasks"></ul>
                         </div>
                         
                         <div class="calendar-section upcoming">
                             <h3>🟢 Kommande <span class="task-count" id="upcoming-count">0</span></h3>
-                            <ul class="task-list" id="upcoming-tasks"></ul>
+                            <ul class="task-list space-y-2" id="upcoming-tasks"></ul>
                         </div>
                         
                         <div class="calendar-section">
                             <h3>⚪ Ingen deadline <span class="task-count" id="no-deadline-count">0</span></h3>
-                            <ul class="task-list" id="no-deadline-tasks"></ul>
+                            <ul class="task-list space-y-2" id="no-deadline-tasks"></ul>
                         </div>
                     </div>
 
@@ -1311,7 +530,6 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@1.35.7/dist/umd/supabase.min.js"></script>
     <script>
         // Global variables
         let tasks = [];
@@ -1327,36 +545,224 @@
         let savedFilters = [];
         let activeFilter = null;
         let currentUser = 'mats'; // För demo, senare från inloggning
+    // Optional multi-tenant scoping
+    let supportsUserId = null; // null=unknown, true/false
+    // Connectivity & sync helpers
+    let isOnline = navigator.onLine;
+    let pendingOps = []; // queue of {type:'upsert'|'delete', payload}
         
         // Supabase configuration
         const SUPABASE_URL = 'https://tazwiywfzpmyqbmmkhpc.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhendpeXdmenBteXFibW1raHBjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxOTg2NzMsImV4cCI6MjA3MTc3NDY3M30.GwC80boqAj4Z78qt3BIG-iau1QJuZiFe058vWtFBCxg';
         
-        let supabaseClient;
-        let useSupabase = false;
+    let supabaseClient;
+    let useSupabase = false;
+    const REQUIRE_AUTH = true; // Enforce login to access the app
         
-        // Initialize Supabase
+        // Initialize Supabase (v2 via module shim)
         console.log('Initializing app...');
-        try {
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            console.log('Supabase client initialized');
-            
-            // Test connection
-            testSupabaseConnection();
-        } catch (error) {
-            console.log('Supabase initialization failed:', error);
-            useSupabase = false;
-            updateStatusIndicator();
+        document.addEventListener('supabase-ready', () => {
+            try {
+                supabaseClient = window.supabaseClient;
+                console.log('Supabase client initialized');
+                // Auth: wire listeners
+                initAuth();
+                // Gate app behind auth when required
+                ensureAuthenticatedThenBoot();
+            } catch (error) {
+                console.log('Supabase initialization failed:', error);
+                useSupabase = false;
+                updateStatusIndicator();
+            }
+        });
+
+        async function ensureAuthenticatedThenBoot() {
+            if (!supabaseClient) return;
+            try {
+                const { data } = await supabaseClient.auth.getSession();
+                const session = data?.session || null;
+                if (REQUIRE_AUTH && !session) {
+                    showLogin();
+                    return;
+                }
+                // Proceed to test and load
+                hideLogin();
+                await detectUserIdColumn();
+                await testSupabaseConnection();
+                await loadTasks();
+            } catch (e) {
+                console.warn('Auth gating error:', e);
+                showLogin();
+            }
+        }
+
+        // --- Auth wiring (magic link + GitHub) ---
+        function showLogin() {
+            const login = document.getElementById('login-view');
+            const app = document.getElementById('app-view');
+            if (login) login.style.display = 'block';
+            if (app) app.style.display = 'none';
+        }
+
+        function hideLogin() {
+            const login = document.getElementById('login-view');
+            const app = document.getElementById('app-view');
+            if (login) login.style.display = 'none';
+            if (app) app.style.display = '';
+        }
+
+        async function logoutUser() {
+            try {
+                if (supabaseClient?.auth) {
+                    await supabaseClient.auth.signOut({ scope: 'global' });
+                }
+            } catch (e) {
+                console.warn('Sign out error:', e);
+            } finally {
+                try { setUserDropdown(null); } catch (_) {}
+                useSupabase = false;
+                updateStatusIndicator();
+                showLogin();
+                // Fallback: if session still present (edge cases), force a soft reset
+                try {
+                    const { data } = await supabaseClient.auth.getSession();
+                    if (data?.session) {
+                        setTimeout(() => window.location.reload(), 50);
+                    }
+                } catch (_) { /* noop */ }
+            }
+        }
+
+        // --- User dropdown helpers ---
+        function setUserDropdown(session) {
+            try {
+                const user = session?.user || null;
+                const email = user?.email || 'Ej inloggad';
+                const name = user?.user_metadata?.name || user?.user_metadata?.full_name || (user ? (email.split('@')[0] || 'Gäst') : 'Gäst');
+                const avatar = (name?.[0] || 'G').toUpperCase();
+
+                const nameEl = document.getElementById('user-name');
+                const emailEl = document.getElementById('user-email');
+                const avatarEl = document.getElementById('user-avatar');
+                if (nameEl) nameEl.textContent = user ? name : 'Gäst';
+                if (emailEl) emailEl.textContent = email;
+                if (avatarEl) avatarEl.textContent = avatar;
+
+                const logoutBtn = document.getElementById('logout-dropdown-btn');
+                if (logoutBtn) {
+                    logoutBtn.disabled = !user;
+                    logoutBtn.classList.toggle('opacity-50', !user);
+                    logoutBtn.classList.toggle('cursor-not-allowed', !user);
+                }
+            } catch (_) {}
+        }
+
+        function initAuth() {
+            if (!supabaseClient) return;
+            // Attach button handlers once
+            try {
+                const magicBtn = document.getElementById('login-magic-btn');
+                const emailInput = document.getElementById('login-email');
+                const githubBtn = document.getElementById('login-github-btn');
+
+                if (magicBtn && emailInput && !magicBtn._wired) {
+                    magicBtn._wired = true;
+                    magicBtn.addEventListener('click', async () => {
+                        const email = (emailInput.value || '').trim();
+                        if (!email) return alert('Fyll i din e-post.');
+                        try {
+                            await supabaseClient.auth.signInWithOtp({
+                                email,
+                                options: {
+                                    emailRedirectTo: window.location.href,
+                                },
+                            });
+                            alert('Magic link skickad! Kolla din e-post.');
+                        } catch (e) {
+                            alert('Fel vid inloggning: ' + (e?.message || e));
+                        }
+                    });
+                }
+
+                if (githubBtn && !githubBtn._wired) {
+                    githubBtn._wired = true;
+                    githubBtn.addEventListener('click', async () => {
+                        try {
+                            const origin = window.location.origin || '';
+                            const isHttp = /^https?:/i.test(origin);
+                            const options = isHttp ? { redirectTo: origin } : {};
+                            await supabaseClient.auth.signInWithOAuth({ provider: 'github', options });
+                        } catch (e) {
+                            const msg = e?.message || String(e);
+                            if (/provider is not enabled|Unsupported provider/i.test(msg)) {
+                                alert('GitHub-inloggning är inte aktiverad i Supabase. Aktivera providern i Supabase → Authentication → Providers och konfigurera Client ID/Secret. I GitHub: sätt Authorization callback URL till ' +
+                                      'https://tazwiywfzpmyqbmmkhpc.supabase.co/auth/v1/callback.\nLägg även till din app-URL (t.ex. ' + window.location.origin + ') under Redirect URLs i Supabase.');
+                            } else if (/redirect|not permitted|not allowed|invalid\s*redirect|URL must be absolute/i.test(msg)) {
+                                const origin = window.location.origin;
+                                alert('Ogiltig eller ej tillåten redirect URL.\n\nGör så här:\n1) I Supabase → Authentication → URL Configuration: sätt "Site URL" till din app-URL.\n2) I Supabase → Authentication → Providers → GitHub: se till att Authorization callback URL är\n   https://tazwiywfzpmyqbmmkhpc.supabase.co/auth/v1/callback\n3) Lägg till följande under "Redirect URLs":\n   - ' + origin + '\n\nTips: Om du kör appen från filsystemet (file://) kan du starta dev-servern (t.ex. http://localhost:5173) och använda den URL:en.');
+                            } else {
+                                alert('Fel vid GitHub-inloggning: ' + msg);
+                            }
+                        }
+                    });
+                }
+            } catch (_) {}
+
+            // Session check and auth state subscription
+            supabaseClient.auth.getSession().then(({ data }) => {
+                const session = data?.session || null;
+                if (session) {
+                    hideLogin();
+                    detectUserIdColumn();
+                }
+            });
+
+        supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+                if (session) {
+                    hideLogin();
+                    await detectUserIdColumn();
+                    // Re-test with auth in place
+                    await testSupabaseConnection();
+                    await loadTasks();
+            setUserDropdown(session);
+                } else {
+                    // Signed out
+                    useSupabase = false;
+                    updateStatusIndicator();
+            if (REQUIRE_AUTH) showLogin();
+            setUserDropdown(null);
+                }
+            });
+        }
+
+        async function getSessionUserId() {
+            try {
+                const { data } = await supabaseClient.auth.getSession();
+                return data?.session?.user?.id || null;
+            } catch (_) { return null; }
+        }
+
+        async function detectUserIdColumn() {
+            if (!supabaseClient) return false;
+            try {
+                const { error } = await supabaseClient
+                    .from('tasks')
+                    .select('user_id', { head: true, count: 'exact' });
+                if (error) throw error;
+                supportsUserId = true;
+            } catch (_) {
+                supportsUserId = false;
+            }
+            return supportsUserId;
         }
         
         async function testSupabaseConnection() {
             try {
                 console.log('Testing Supabase connection...');
-                const { data, error } = await supabaseClient
+                const { error } = await supabaseClient
                     .from('tasks')
-                    .select('count')
-                    .limit(1);
-                    
+                    .select('id', { count: 'exact', head: true });
+                
                 if (error) throw error;
                 
                 console.log('✅ Supabase connection successful!');
@@ -1364,25 +770,40 @@
                 updateStatusIndicator();
                 
                 // Load tasks from Supabase
-                loadTasks();
+                // Only load here if not already gated elsewhere
+                if (!REQUIRE_AUTH) loadTasks();
             } catch (error) {
-                console.log('Supabase connection failed:', error.message);
+                const msg = error?.message || String(error);
+                console.log('Supabase connection failed:', msg);
                 useSupabase = false;
                 updateStatusIndicator();
-                
-                // Load from localStorage as fallback
-                loadTasks();
+                // If it's a permission/auth issue, show login instead of silently falling back
+                const status = error?.status || error?.code;
+                if (status === 401 || status === 403 || /permission|JWT|auth/i.test(msg)) {
+                    showLogin();
+                    return;
+                }
+                // When auth is required, do not fallback to local
+                if (!REQUIRE_AUTH) {
+                    // Load from localStorage as fallback
+                    loadTasks();
+                }
             }
         }
         
         function updateStatusIndicator() {
             const indicator = document.getElementById('status-indicator');
             if (useSupabase) {
-                indicator.textContent = '🌐 Supabase Connected';
+                indicator.textContent = isOnline ? '🌐 Supabase Connected' : '🛜 Offline (queueing)';
                 indicator.className = 'status-indicator';
             } else {
+                if (REQUIRE_AUTH) {
+                    indicator.textContent = '🔒 Sign in required';
+                    indicator.className = 'status-indicator local';
+                } else {
                 indicator.textContent = '💾 Local Mode';
                 indicator.className = 'status-indicator local';
+                }
             }
             
             // Hide after 3 seconds
@@ -1391,22 +812,127 @@
                 setTimeout(() => indicator.style.display = 'none', 300);
             }, 3000);
         }
+
+        // Network listeners
+        window.addEventListener('online', () => { isOnline = true; updateStatusIndicator(); flushPendingOps(); });
+        window.addEventListener('offline', () => { isOnline = false; updateStatusIndicator(); });
+
+        // Retry helper
+        async function withRetry(fn, { retries = 3, baseDelay = 250 } = {}) {
+            let lastErr;
+            for (let i = 0; i < retries; i++) {
+                try {
+                    return await fn();
+                } catch (e) {
+                    lastErr = e;
+                    const delay = baseDelay * Math.pow(2, i) + Math.random() * 100;
+                    await new Promise(r => setTimeout(r, delay));
+                }
+            }
+            throw lastErr;
+        }
+
+        function chunk(arr, size) {
+            const out = [];
+            for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+            return out;
+        }
+
+        async function flushPendingOps() {
+            if (!useSupabase || !isOnline || pendingOps.length === 0) return;
+            const ops = [...pendingOps];
+            pendingOps = [];
+            for (const op of ops) {
+                try {
+                    if (op.type === 'upsert') {
+                        await upsertTasksSupabase(op.payload);
+                    } else if (op.type === 'delete') {
+                        await deleteTasksSupabase(op.payload);
+                    }
+                } catch (e) {
+                    console.warn('Re-queueing failed op:', op, e);
+                    pendingOps.push(op);
+                }
+            }
+        }
+
+        async function upsertTasksSupabase(items) {
+            const uid = await getSessionUserId();
+            const rows = items.map(t => (supportsUserId && uid ? { ...t, user_id: uid } : t));
+            const groups = chunk(rows, 50);
+            for (const g of groups) {
+                await withRetry(async () => {
+                    const { error } = await supabaseClient.from('tasks').upsert(g, { onConflict: 'id' });
+                    if (error) throw error;
+                });
+            }
+        }
+
+        async function deleteTasksSupabase(ids) {
+            const groups = chunk(ids, 50);
+            for (const g of groups) {
+                await withRetry(async () => {
+                    const { error } = await supabaseClient.from('tasks').delete().in('id', g);
+                    if (error) throw error;
+                });
+            }
+        }
+
+        // Simple toast notifications
+        function showToast(message, type = 'success') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.style.position = 'fixed';
+                container.style.right = '16px';
+                container.style.bottom = '16px';
+                container.style.display = 'flex';
+                container.style.flexDirection = 'column';
+                container.style.gap = '8px';
+                container.style.zIndex = '9999';
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.padding = '10px 12px';
+            toast.style.borderRadius = '8px';
+            toast.style.boxShadow = '0 4px 10px rgba(0,0,0,0.12)';
+            toast.style.color = type === 'error' ? '#991B1B' : '#065F46';
+            toast.style.background = type === 'error' ? '#FEE2E2' : '#D1FAE5';
+            toast.style.border = type === 'error' ? '1px solid #FCA5A5' : '1px solid #6EE7B7';
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 250ms ease';
+                setTimeout(() => toast.remove(), 260);
+            }, 2200);
+        }
         
         // Task management functions
         async function loadTasks() {
             try {
                 if (useSupabase) {
                     console.log('Loading tasks from Supabase...');
-                    const { data, error } = await supabaseClient
+                    let query = supabaseClient
                         .from('tasks')
                         .select('*')
                         .order('created_at', { ascending: true });
+                    const uid = await getSessionUserId();
+                    if (supportsUserId && uid) {
+                        query = query.eq('user_id', uid);
+                    }
+                    const { data, error } = await query;
                         
                     if (error) throw error;
                     
                     console.log('Tasks loaded from Supabase:', data);
                     tasks = data || [];
                 } else {
+                    if (REQUIRE_AUTH) {
+                        showLogin();
+                        return;
+                    }
                     console.log('💾 Loading tasks from localStorage...');
                     const savedTasks = localStorage.getItem('agoodapp_tasks');
                     tasks = savedTasks ? JSON.parse(savedTasks) : [];
@@ -1424,14 +950,22 @@
                 updateInboxCount();
             } catch (error) {
                 console.error('Error loading tasks:', error);
-                // Fallback to localStorage
-                const savedTasks = localStorage.getItem('agoodapp_tasks');
-                tasks = savedTasks ? JSON.parse(savedTasks) : [];
-                // Migrate old tasks here too
-                tasks = tasks.map(task => migrateTaskFormat(task));
-                renderTasks();
-                updateProjectCounts();
-                updateInboxCount();
+                const msg = error?.message || String(error);
+                const status = error?.status || error?.code;
+                if (status === 401 || status === 403 || /permission|JWT|auth/i.test(msg)) {
+                    showLogin();
+                    return;
+                }
+                if (!REQUIRE_AUTH) {
+                    // Fallback to localStorage
+                    const savedTasks = localStorage.getItem('agoodapp_tasks');
+                    tasks = savedTasks ? JSON.parse(savedTasks) : [];
+                    // Migrate old tasks here too
+                    tasks = tasks.map(task => migrateTaskFormat(task));
+                    renderTasks();
+                    updateProjectCounts();
+                    updateInboxCount();
+                }
             }
         }
         
@@ -1464,26 +998,410 @@
                 
                 if (useSupabase) {
                     console.log('📤 Saving tasks to Supabase...');
-                    
-                    // Save each task to Supabase
-                    for (let task of tasks) {
-                        const { error } = await supabaseClient
-                            .from('tasks')
-                            .upsert(task);
-                            
-                        if (error) throw error;
+                    let lastSavedId = tasks.length ? tasks[tasks.length - 1].id : null;
+                    if (!isOnline) {
+                        pendingOps.push({ type: 'upsert', payload: tasks });
+                        showToast('🛜 Offline — köar ändringar');
+                    } else {
+                        await upsertTasksSupabase(tasks);
+                        console.log('✅ Tasks saved to Supabase successfully');
                     }
-                    
-                    console.log('✅ Tasks saved to Supabase successfully');
+
+                    // Verify last write by re-selecting the last saved id
+                    try {
+                        if (lastSavedId) {
+                            const uid = await getSessionUserId();
+                            let q = supabaseClient.from('tasks').select('id').eq('id', lastSavedId).limit(1);
+                            if (supportsUserId && uid) q = q.eq('user_id', uid);
+                            const { data, error } = isOnline ? await q : { data: null, error: null };
+                            if (!isOnline) {
+                                showToast('🛜 Offline — sparat lokalt');
+                            } else if (error) throw error;
+                            else if (Array.isArray(data) && data.length === 1) {
+                                showToast('✅ Sparat i Supabase');
+                            } else {
+                                showToast('⚠️ Kunde inte verifiera sparningen', 'error');
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Post-save verify failed:', e);
+                        showToast('⚠️ Verifiering misslyckades', 'error');
+                    }
                 }
             } catch (error) {
                 console.error('❌ Error saving tasks:', error);
                 // Data is still saved in localStorage
+                showToast('❌ Fel vid sparande i Supabase', 'error');
             }
         }
         
         function generateId() {
             return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        // Inline add (Things-like quick entry)
+        async function handleInlineAddKeydown(event) {
+            const input = event.target;
+            // Suggestion navigation
+            if (inlineSuggestState.open) {
+                if (event.key === 'ArrowDown' || (event.key === 'Tab' && !event.shiftKey)) {
+                    event.preventDefault();
+                    inlineSuggestState.index = (inlineSuggestState.index + 1) % inlineSuggestState.items.length;
+                    renderInlineSuggest();
+                    return;
+                }
+                if (event.key === 'ArrowUp' || (event.key === 'Tab' && event.shiftKey)) {
+                    event.preventDefault();
+                    inlineSuggestState.index = (inlineSuggestState.index - 1 + inlineSuggestState.items.length) % inlineSuggestState.items.length;
+                    renderInlineSuggest();
+                    return;
+                }
+                if (event.key === 'Enter') {
+                    // Accept suggestion instead of submitting task if menu is open
+                    event.preventDefault();
+                    applySuggestion(inlineSuggestState.index);
+                    return;
+                }
+                if (event.key === 'Escape') {
+                    inlineSuggestClose();
+                    return;
+                }
+            }
+            if (event.key === 'Enter' && event.shiftKey) {
+                // Allow newline
+                return;
+            }
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            const parsed = parseInlineEntry(input.value || '');
+            if (!parsed.title) return;
+
+            // If a project was specified, ensure it exists
+            if (parsed.project) {
+                const reserved = new Set(['all','inbox','settings']);
+                const name = String(parsed.project).trim();
+                if (name && !reserved.has(name.toLowerCase()) && !projects.includes(name)) {
+                    addProject(name);
+                }
+            }
+
+            const task = {
+                id: generateId(),
+                title: parsed.title,
+                type: 'todo',
+                priority: parsed.priority || 'medium',
+                assignee: parsed.assignee || currentUser,
+                deadline: parsed.deadline || null,
+                project: parsed.project ? parsed.project : (currentProject === 'all' ? 'work' : currentProject),
+                completed: false,
+                parent_id: null,
+                collapsed: false,
+                notes: [],
+                agile: parsed.agile || 'later',
+                estimated_hours: parsed.estimated_hours || null,
+                created_at: new Date().toISOString(),
+                completed_at: null
+            };
+
+            tasks.push(task);
+            await saveTasks();
+            renderTasks();
+            updateProjectCounts();
+            input.value = '';
+            document.getElementById('inline-add-chips').innerHTML = '';
+        }
+
+        function handleInlineAddInput(event) {
+            const input = event.target;
+            autoResizeTextarea(input, 72, 120);
+            const parsed = parseInlineEntry(input.value || '');
+            renderInlineChips(parsed);
+            computeSuggestions(input);
+        }
+
+        function autoResizeTextarea(el, min = 72, max = 160) {
+            el.style.height = 'auto';
+            const next = Math.max(min, Math.min(max, el.scrollHeight));
+            el.style.height = next + 'px';
+        }
+
+    function parseInlineEntry(raw) {
+            const obj = { title: '', priority: null, assignee: null, deadline: null, agile: null, estimated_hours: null, project: null };
+            let text = (raw || '').trim();
+            const tokens = text.split(/\s+/);
+            const rest = [];
+            const weekdayMap = {
+                mandag: 1, tisdag: 2, onsdag: 3, torsdag: 4, fredag: 5, lordag: 6, sondag: 0,
+                måndag: 1, tisdag_: 2, onsdag_: 3, torsdag_: 4, fredag_: 5, lördag: 6, söndag: 0
+            };
+            let nextWeekFlag = false;
+            const today = new Date();
+            const norm = (s) => s
+                .toLowerCase()
+                .replaceAll('å', 'a')
+                .replaceAll('ä', 'a')
+                .replaceAll('ö', 'o');
+
+            const setDeadline = (d) => {
+                if (!obj.deadline && d instanceof Date && !isNaN(d)) {
+                    // normalize to YYYY-MM-DD (local date portion)
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const da = String(d.getDate()).padStart(2, '0');
+                    obj.deadline = `${y}-${m}-${da}`;
+                }
+            };
+
+            const nextWeekday = (targetDow, forceNextWeek = false) => {
+                const base = new Date();
+                const curr = base.getDay();
+                let delta = (targetDow - curr + 7) % 7;
+                if (forceNextWeek) delta += (delta === 0 ? 7 : 7);
+                const d = new Date(base);
+                d.setDate(base.getDate() + delta);
+                return d;
+            };
+
+            const nextWeekdayFrom = (base, targetDow) => {
+                const curr = base.getDay();
+                let delta = (targetDow - curr + 7) % 7;
+                const d = new Date(base);
+                d.setDate(base.getDate() + delta);
+                return d;
+            };
+
+            for (let i = 0; i < tokens.length; i++) {
+                const rawTok = tokens[i];
+                const tok = rawTok.trim();
+                if (!tok) continue;
+                const t = norm(tok);
+
+                // Priority p:low|medium|high
+                if (/^p:(low|medium|high)$/i.test(t)) {
+                    obj.priority = t.split(':')[1].toLowerCase();
+                    continue;
+                }
+                // Assignee @name
+                if (/^@\w+$/i.test(tok)) {
+                    obj.assignee = tok.slice(1).toLowerCase();
+                    continue;
+                }
+                // Agile #now|#next|#later
+                if (/^#(now|next|later)$/i.test(t)) {
+                    obj.agile = t.slice(1).toLowerCase();
+                    continue;
+                }
+                // Project #<name>
+                if (/^#[\w-]+$/i.test(tok)) {
+                    const name = tok.slice(1);
+                    const lowered = name.toLowerCase();
+                    if (!['now','next','later','all','inbox','settings'].includes(lowered)) {
+                        obj.project = name;
+                        continue;
+                    }
+                }
+                // Estimated hours h:2.5
+                if (/^h:(\d+(\.\d+)?)$/i.test(t)) {
+                    const num = parseFloat(t.split(':')[1]);
+                    if (!Number.isNaN(num)) obj.estimated_hours = num;
+                    continue;
+                }
+                // Explicit ISO date YYYY-MM-DD
+                if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+                    setDeadline(new Date(t + 'T00:00:00'));
+                    continue;
+                }
+                // Swedish short date DD/MM or DD/MM/YYYY or DD-MM(-YYYY)
+                const mShort = t.match(/^(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{4}))?$/);
+                if (mShort) {
+                    const dd = parseInt(mShort[1], 10);
+                    const mm = parseInt(mShort[2], 10) - 1;
+                    const yy = mShort[3] ? parseInt(mShort[3], 10) : today.getFullYear();
+                    const d = new Date(yy, mm, dd);
+                    setDeadline(d);
+                    continue;
+                }
+                // Natural words: idag, imorgon, i morgon, overmorgon, i overmorgon
+                if (t === 'idag') { setDeadline(today); continue; }
+                if (t === 'imorgon') { const d = new Date(); d.setDate(today.getDate() + 1); setDeadline(d); continue; }
+                if (t === 'overmorgon') { const d = new Date(); d.setDate(today.getDate() + 2); setDeadline(d); continue; }
+                if (t === 'i' && i + 1 < tokens.length && norm(tokens[i + 1]) === 'morgon') {
+                    const d = new Date(); d.setDate(today.getDate() + 1); setDeadline(d); i += 1; continue;
+                }
+                if (t === 'i' && i + 1 < tokens.length && norm(tokens[i + 1]) === 'overmorgon') {
+                    const d = new Date(); d.setDate(today.getDate() + 2); setDeadline(d); i += 1; continue;
+                }
+                // Flag for next week
+                if (t === 'nasta' || (t === 'nasta vecka')) { nextWeekFlag = true; continue; }
+                // Weekday names, possibly preceded by 'nästa'
+                if (t in weekdayMap) {
+                    const target = weekdayMap[t];
+                    setDeadline(nextWeekday(target, nextWeekFlag));
+                    nextWeekFlag = false;
+                    continue;
+                }
+                // Relative: om N dagar/veckor
+                if (t === 'om' && i + 1 < tokens.length) {
+                    const num = parseInt(tokens[i + 1], 10);
+                    const unit = tokens[i + 2] ? norm(tokens[i + 2]) : '';
+                    if (!Number.isNaN(num) && (unit.startsWith('dag') || unit.startsWith('veck'))) {
+                        const base = new Date();
+                        const add = unit.startsWith('dag') ? num : num * 7;
+                        base.setDate(today.getDate() + add);
+                        // Handle optional "på <weekday>"
+                        if (i + 3 < tokens.length && norm(tokens[i + 3]) === 'pa' && i + 4 < tokens.length) {
+                            const wdTok = norm(tokens[i + 4]);
+                            const target = weekdayMap[wdTok];
+                            if (typeof target === 'number') {
+                                const d2 = nextWeekdayFrom(base, target);
+                                setDeadline(d2);
+                                i += 4;
+                                continue;
+                            }
+                        }
+                        setDeadline(base);
+                        i += 2;
+                        continue;
+                    }
+                }
+                // Legacy due:YYYY-MM-DD still supported
+                if (/^due:\d{4}-\d{2}-\d{2}$/i.test(t)) {
+                    obj.deadline = t.split(':')[1];
+                    continue;
+                }
+
+                // Unrecognized → part of title
+                rest.push(rawTok);
+            }
+            obj.title = rest.join(' ').trim();
+            return obj;
+        }
+
+        function renderInlineChips(parsed) {
+            const wrap = document.getElementById('inline-add-chips');
+            if (!wrap) return;
+            const chips = [];
+            if (parsed.priority) chips.push(`<span class="chip chip-priority">prio: ${parsed.priority}</span>`);
+            if (parsed.deadline) {
+                const d = new Date(parsed.deadline + 'T00:00:00');
+                const label = isNaN(d) ? parsed.deadline : d.toLocaleDateString('sv-SE');
+                chips.push(`<span class="chip chip-deadline">${label}</span>`);
+            }
+            if (parsed.assignee) chips.push(`<span class="chip">@${parsed.assignee}</span>`);
+            if (parsed.agile) chips.push(`<span class="chip">#${parsed.agile}</span>`);
+            if (parsed.estimated_hours) chips.push(`<span class="chip">⏱ ${parsed.estimated_hours}h</span>`);
+            if (parsed.project) chips.push(`<span class="chip">#${parsed.project}</span>`);
+            wrap.innerHTML = chips.join(' ');
+        }
+
+    // --- Inline suggestions (weekdays, @assignees, #projects) ---
+        const WEEKDAYS_DISPLAY = ['måndag','tisdag','onsdag','torsdag','fredag','lördag','söndag'];
+        const WEEKDAYS_NORM = WEEKDAYS_DISPLAY.map(w => w.toLowerCase().replaceAll('å','a').replaceAll('ä','a').replaceAll('ö','o'));
+        let inlineSuggestState = { open:false, items:[], index:-1, start:0, end:0, kind:null };
+
+        function getAssignees() {
+            try {
+                const sel = document.getElementById('task-assignee');
+                if (!sel) return [];
+                const values = Array.from(sel.options).map(o => String(o.value || '').toLowerCase()).filter(Boolean);
+                return Array.from(new Set(values));
+            } catch { return []; }
+        }
+
+        function getTokenAtCursor(textarea) {
+            const pos = textarea.selectionStart || 0;
+            const v = textarea.value || '';
+            let s = pos, e = pos;
+            while (s > 0 && v[s-1] !== ' ' && v[s-1] !== '\n' && v[s-1] !== '\t') s--;
+            while (e < v.length && v[e] !== ' ' && v[e] !== '\n' && v[e] !== '\t') e++;
+            return { start:s, end:e, value: v.slice(s,e) };
+        }
+
+        function replaceToken(textarea, start, end, replacement) {
+            const v = textarea.value || '';
+            const before = v.slice(0, start);
+            const after = v.slice(end);
+            const next = before + replacement + after;
+            const caret = (before + replacement).length;
+            textarea.value = next;
+            textarea.setSelectionRange(caret, caret);
+            handleInlineAddInput({ target: textarea });
+        }
+
+        function computeSuggestions(textarea) {
+            const { start, end, value } = getTokenAtCursor(textarea);
+            const normTok = value.toLowerCase().replaceAll('å','a').replaceAll('ä','a').replaceAll('ö','o');
+            const items = [];
+            let kind = null;
+            if (value.startsWith('@')) {
+                const q = value.slice(1).toLowerCase();
+                const candidates = getAssignees();
+                const filtered = candidates.filter(c => !q || c.startsWith(q));
+                items.push(...filtered.map(n => ({ label:'@'+n, value:'@'+n })));
+                kind = 'assignee';
+            } else if (value.startsWith('#')) {
+                const q = value.slice(1).toLowerCase();
+                const reserved = new Set(['all','inbox','settings','now','next','later']);
+                const projItems = projects
+                    .filter(p => !reserved.has(p.toLowerCase()))
+                    .filter(p => !q || p.toLowerCase().startsWith(q))
+                    .map(p => ({ label: '#' + p, value: '#' + p }));
+                items.push(...projItems);
+                if (q && !projects.some(p => p.toLowerCase() === q) && !reserved.has(q)) {
+                    items.push({ label: `➕ Skapa projekt “${q}”`, value: '#' + q, create: true });
+                }
+                kind = 'project';
+            } else if (normTok && WEEKDAYS_NORM.some(w => w.startsWith(normTok))) {
+                WEEKDAYS_NORM.forEach((w,i) => {
+                    if (w.startsWith(normTok)) items.push({ label: WEEKDAYS_DISPLAY[i], value: WEEKDAYS_DISPLAY[i] });
+                });
+                kind = 'weekday';
+            } else {
+                inlineSuggestClose();
+                return;
+            }
+            if (items.length) {
+                inlineSuggestState = { open:true, items, index:0, start, end, kind };
+                renderInlineSuggest();
+            } else {
+                inlineSuggestClose();
+            }
+        }
+
+        function renderInlineSuggest() {
+            const el = document.getElementById('inline-suggest');
+            if (!el) return;
+            el.innerHTML = inlineSuggestState.items.map((it, idx) => `<div class="inline-suggest-item ${idx===inlineSuggestState.index?'active':''}" data-idx="${idx}" role="option">${it.label}</div>`).join('');
+            el.classList.remove('hidden');
+            // Mouse support
+            el.querySelectorAll('.inline-suggest-item').forEach(node => {
+                node.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    const idx = parseInt(node.getAttribute('data-idx'),10);
+                    applySuggestion(idx);
+                });
+            });
+        }
+
+        function inlineSuggestClose() {
+            inlineSuggestState.open = false;
+            const el = document.getElementById('inline-suggest');
+            if (el) el.classList.add('hidden');
+        }
+
+        function applySuggestion(idx) {
+            const ta = document.getElementById('inline-add-input');
+            const it = inlineSuggestState.items[idx];
+            if (!ta || !it) return;
+            if (inlineSuggestState.kind === 'project' && it.create) {
+                const name = (it.value || '').slice(1);
+                const reserved = new Set(['all','inbox','settings']);
+                if (name && !reserved.has(name.toLowerCase()) && !projects.includes(name)) {
+                    addProject(name);
+                }
+            }
+            replaceToken(ta, inlineSuggestState.start, inlineSuggestState.end, it.value);
+            inlineSuggestClose();
         }
         
         function showTaskForm() {
@@ -1661,10 +1579,12 @@
             
             if (useSupabase) {
                 try {
-                    await supabaseClient
-                        .from('tasks')
-                        .delete()
-                        .eq('id', taskId);
+                    if (!isOnline) {
+                        pendingOps.push({ type: 'delete', payload: [taskId] });
+                        showToast('🛜 Offline — köar radering');
+                    } else {
+                        await deleteTasksSupabase([taskId]);
+                    }
                 } catch (error) {
                     console.error('Error deleting task from Supabase:', error);
                 }
@@ -1945,6 +1865,9 @@
             if (activeItem) {
                 activeItem.classList.add('active');
             }
+
+            // Apply Tailwind styles to active item
+            applyProjectActiveStyles();
         }
         
         function showInbox() {
@@ -1961,6 +1884,8 @@
             document.querySelector('[data-project="inbox"]').classList.add('active');
             
             renderNotifications();
+
+            applyProjectActiveStyles();
         }
         
         function showSettings() {
@@ -1975,6 +1900,8 @@
                 item.classList.remove('active');
             });
             document.querySelector('[data-project="settings"]').classList.add('active');
+
+            applyProjectActiveStyles();
         }
         
         // Project management
@@ -1991,10 +1918,9 @@
                 return;
             }
             
-            // Clear active filter when selecting project
-            clearFilter();
-            
+            // Set project first, then clear any active filter without re-selecting project
             currentProject = projectId;
+            clearFilter();
             showMainView();
             
             // Update title
@@ -2090,6 +2016,8 @@
                 tab.classList.remove('active');
             });
             event.target.classList.add('active');
+
+            applyTabActiveStyles();
             
             // Show/hide views
             if (tabName === 'outline') {
@@ -2100,7 +2028,11 @@
                 document.getElementById('outline-view').style.display = 'none';
                 document.getElementById('calendar-view').style.display = 'block';
                 document.getElementById('assignees-view').style.display = 'none';
-                renderCalendarView();
+                if (window.renderCalendarFromApi) {
+                    window.renderCalendarFromApi();
+                } else {
+                    renderCalendarView();
+                }
             } else if (tabName === 'assignees') {
                 document.getElementById('outline-view').style.display = 'none';
                 document.getElementById('calendar-view').style.display = 'none';
@@ -2147,11 +2079,11 @@
             }
         }
         
-        function createTaskElement(task) {
+    function createTaskElement(task) {
             console.log('Creating task element for:', task); // Debug
             
             const li = document.createElement('li');
-            li.className = `task-item ${task.completed ? 'completed' : ''}`;
+            li.className = `task-item ${task.completed ? 'completed opacity-80' : ''} rounded-lg border border-gray-200 bg-white p-3 flex items-center gap-3 hover:bg-gray-50`;
             li.setAttribute('draggable', 'true');
             li.setAttribute('data-task-id', task.id);
             
@@ -2197,19 +2129,19 @@
             console.log('Task ID for onclick:', task.id); // Debug
             
             li.innerHTML = `
-                <span class="drag-handle">⋮⋮</span>
+                <span class="drag-handle text-gray-400 cursor-grab select-none">⋮⋮</span>
                 ${task.type === 'todo' ? 
-                    `<div class="task-checkbox ${task.completed ? 'checked' : ''}" onclick="event.stopPropagation(); toggleTaskComplete('${task.id}')">${task.completed ? '✓' : ''}</div>` : 
-                    '<div style="width: 18px;"></div>'
+                    `<div class="task-checkbox ${task.completed ? 'checked bg-green-600 text-white border-green-600' : 'bg-white'} w-5 h-5 rounded border border-gray-300 flex items-center justify-center" onclick="event.stopPropagation(); toggleTaskComplete('${task.id}')">${task.completed ? '✓' : ''}</div>` : 
+                    '<div class="w-5"></div>'
                 }
-                <div class="task-content" onclick="editTask('${task.id}')">
-                    <div class="task-title">${task.title}</div>
+                <div class="task-content flex-1 min-w-0" onclick="editTask('${task.id}')">
+                    <div class="task-title ${task.completed ? 'line-through text-gray-400' : 'text-gray-900'} font-medium truncate">${task.title}</div>
                     ${metaItems.length > 0 ? 
-                        `<div class="task-meta">${metaItems.join(' ')}</div>` : ''
+                        `<div class="task-meta mt-1 text-xs text-gray-500 flex gap-2 flex-wrap">${metaItems.join(' ')}</div>` : ''
                     }
                 </div>
-                <div class="task-actions">
-                    <button class="task-action-btn" onclick="event.stopPropagation(); deleteTask('${task.id}')" title="Ta bort">🗑️</button>
+                <div class="task-actions flex items-center gap-2">
+                    <button class="task-action-btn text-gray-500 hover:text-red-600" onclick="event.stopPropagation(); deleteTask('${task.id}')" title="Ta bort">🗑️</button>
                 </div>
             `;
             
@@ -2347,7 +2279,17 @@
         // Sidebar management
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('collapsed');
+            const app = document.getElementById('app-view');
+            if (app) app.classList.toggle('collapsed');
+
+            // Update aria-expanded for accessibility
+            try {
+                const btn = sidebar.querySelector('.hamburger-btn');
+                if (btn) {
+                    const expanded = btn.getAttribute('aria-expanded') === 'true';
+                    btn.setAttribute('aria-expanded', String(!expanded));
+                }
+            } catch (_) { /* noop */ }
         }
         
         // Import/Export functions
@@ -2398,28 +2340,113 @@
             event.target.value = '';
         }
         
-        async function syncFromSupabase() {
-            if (!useSupabase) {
-                alert('Supabase är inte tillgängligt.');
-                return;
+        // Merge remote tasks into local without deleting local-only tasks
+        function mergeTasksById(localList, remoteList) {
+            const map = new Map();
+            // Normalize and seed with local tasks
+            for (const t of localList.map(migrateTaskFormat)) {
+                if (!t.id) continue;
+                map.set(String(t.id), t);
             }
-            
+            // Overlay remote tasks (remote wins on conflicts)
+            for (const rt of remoteList.map(migrateTaskFormat)) {
+                if (!rt.id) continue;
+                map.set(String(rt.id), rt);
+            }
+            // Return sorted by created_at asc for stable UI
+            return Array.from(map.values()).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        }
+
+        function getLocalTasksFromStorage() {
             try {
-                const { data, error } = await supabaseClient
+                const saved = localStorage.getItem('agoodapp_tasks');
+                const parsed = saved ? JSON.parse(saved) : [];
+                return Array.isArray(parsed) ? parsed.map(migrateTaskFormat) : [];
+            } catch (_) {
+                return [];
+            }
+        }
+
+        async function syncFromSupabase() {
+            // Pre-flight checks and auto-recovery
+            try {
+                if (!supabaseClient) {
+                    alert('Supabase-klienten är inte initialiserad ännu. Ladda om sidan och försök igen.');
+                    return;
+                }
+                if (!isOnline) {
+                    alert('Du är offline just nu. Anslut till internet och försök igen.');
+                    return;
+                }
+                if (REQUIRE_AUTH) {
+                    const { data } = await supabaseClient.auth.getSession();
+                    if (!data?.session) {
+                        showLogin();
+                        alert('Logga in för att synka från Supabase.');
+                        return;
+                    }
+                }
+                if (!useSupabase) {
+                    // Try to establish a working connection before giving up
+                    await testSupabaseConnection();
+                    if (!useSupabase) {
+                        alert('Supabase är inte tillgängligt eller behörighet saknas. Kontrollera inloggning och åtkomst i Supabase.');
+                        return;
+                    }
+                }
+
+                let query = supabaseClient
                     .from('tasks')
-                    .select('*');
-                    
-                if (error) throw error;
+                    .select('*')
+                    .order('created_at', { ascending: true });
+                const uid = await getSessionUserId();
+                if (supportsUserId && uid) query = query.eq('user_id', uid);
+                const { data, error } = await query;
                 
-                tasks = data || [];
+                if (error) throw error;
+
+                const remote = Array.isArray(data) ? data : [];
+                if (remote.length === 0) {
+                    // Do not wipe local if remote is empty
+                    alert('Inga uppgifter hittades i Supabase. Dina lokala uppgifter lämnas oförändrade.');
+                    return;
+                }
+
+                // Build a safe local baseline: union of in-memory tasks and localStorage tasks
+                const localFromStorage = getLocalTasksFromStorage();
+                const localUnionMap = new Map();
+                for (const t of (Array.isArray(tasks) ? tasks : []).map(migrateTaskFormat)) {
+                    if (t?.id) localUnionMap.set(String(t.id), t);
+                }
+                for (const t of localFromStorage) {
+                    if (t?.id && !localUnionMap.has(String(t.id))) {
+                        localUnionMap.set(String(t.id), t);
+                    }
+                }
+                const localBaseline = Array.from(localUnionMap.values());
+
+                const beforeCount = localBaseline.length;
+                const merged = mergeTasksById(localBaseline, remote);
+                tasks = merged;
                 await saveTasks();
                 renderTasks();
                 updateProjectCounts();
-                
-                alert('Data synkroniserad från Supabase!');
+                updateInboxCount();
+
+                alert(`Synkat! Hämtade ${remote.length} från molnet. Totalt lokalt nu: ${tasks.length}.`);
             } catch (error) {
                 console.error('Sync error:', error);
-                alert('Fel vid synkronisering från Supabase.');
+                const status = error?.status || error?.code;
+                if (status === 401 || status === 403) {
+                    showLogin();
+                    alert('Behörighet nekad. Logga in igen för att synka.');
+                    return;
+                }
+                if (String(error?.message || '').includes('Failed to fetch') || !isOnline) {
+                    alert('Kan inte nå Supabase just nu. Kontrollera din internetanslutning och försök igen.');
+                    return;
+                }
+                alert(`Fel vid synkronisering från Supabase: ${error?.message || error}`);
             }
         }
         
@@ -2456,8 +2483,50 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM loaded, initializing app...'); // Debug
             
-            loadTasks();
+            if (!REQUIRE_AUTH) {
+                loadTasks();
+            }
             loadSavedFilters();
+            // Wire logout button
+            // Logout lives in the user dropdown footer
+
+            // Init user dropdown
+            (async function initUserDropdown(){
+                const menuBtn = document.getElementById('user-menu-button');
+                const menuItems = document.getElementById('user-menu-items');
+                const logoutBtn = document.getElementById('logout-dropdown-btn');
+
+                if (menuBtn && !menuBtn._wired) {
+                    menuBtn._wired = true;
+                    menuBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const isHidden = menuItems?.classList.contains('hidden');
+                        if (menuItems) menuItems.classList.toggle('hidden', !isHidden);
+                        menuBtn.setAttribute('aria-expanded', String(!!isHidden));
+                    });
+                }
+
+                document.addEventListener('click', () => {
+                    if (menuItems && !menuItems.classList.contains('hidden')) {
+                        menuItems.classList.add('hidden');
+                        menuBtn?.setAttribute('aria-expanded', 'false');
+                    }
+                });
+
+                if (logoutBtn && !logoutBtn._wired) {
+                    logoutBtn._wired = true;
+                    logoutBtn.addEventListener('click', async () => {
+                        await logoutUser();
+                        if (menuItems) menuItems.classList.add('hidden');
+                        menuBtn?.setAttribute('aria-expanded', 'false');
+                    });
+                }
+
+                try {
+                    const { data } = await supabaseClient.auth.getSession();
+                    setUserDropdown(data?.session || null);
+                } catch (_) {}
+            })();
             
             // Add event listener for new filter button
             const newFilterBtn = document.getElementById('new-filter-btn');
@@ -2502,7 +2571,25 @@
             });
             
             console.log('App initialization completed'); // Debug
+
+            // Apply initial active styles
+            applyProjectActiveStyles();
+            applyFilterActiveStyles();
+            applyTabActiveStyles();
         });
+
+        // Theme toggle handler
+        (function initThemeToggle(){
+            const btn = document.getElementById('theme-toggle');
+            if (!btn) return;
+            btn.addEventListener('click', () => {
+                const root = document.documentElement;
+                const isDark = root.classList.toggle('dark');
+                try {
+                    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                } catch (_) {}
+            });
+        })();
         
         // Filter management functions
         async function loadSavedFilters() {
@@ -2852,7 +2939,7 @@
             
             sortedFilters.forEach(filter => {
                 const filterEl = document.createElement('div');
-                filterEl.className = `filter-item ${activeFilter && activeFilter.id === filter.id ? 'active' : ''}`;
+                filterEl.className = `filter-item ${activeFilter && activeFilter.id === filter.id ? 'active' : ''} flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50 cursor-pointer`;
                 filterEl.innerHTML = `
                     <span class="icon">🔍</span>
                     <span class="name">${filter.name}</span>
@@ -2869,6 +2956,8 @@
                 
                 filterList.appendChild(filterEl);
             });
+
+            applyFilterActiveStyles();
         }
         
         function editFilter(filterId) {
@@ -2894,18 +2983,54 @@
             
             showMainView();
             renderTasks();
+
+            applyFilterActiveStyles();
         }
         
-        function clearFilter() {
+    function clearFilter() {
             activeFilter = null;
             
             // Clear filter selection
             document.querySelectorAll('.filter-item').forEach(item => {
                 item.classList.remove('active');
             });
-            
-            // Restore project selection
-            selectProject(currentProject);
+
+            applyFilterActiveStyles();
+        }
+
+        function applyTabActiveStyles() {
+            document.querySelectorAll('.tab').forEach(el => {
+                // Ensure consistent underline height
+                el.classList.add('border-b-2');
+                if (el.classList.contains('active')) {
+                    el.classList.add('bg-gray-100', 'border-blue-600', 'text-blue-700', 'font-medium');
+                    el.classList.remove('border-transparent', 'text-gray-700');
+                } else {
+                    el.classList.add('border-transparent', 'text-gray-700');
+                    el.classList.remove('bg-gray-100', 'border-blue-600', 'text-blue-700', 'font-medium');
+                }
+            });
+        }
+
+        // Tailwind styling helpers for active items
+        function applyProjectActiveStyles() {
+            document.querySelectorAll('.project-item').forEach(el => {
+                if (el.classList.contains('active')) {
+                    el.classList.add('bg-gray-100', 'border-l-2', 'border-blue-600');
+                } else {
+                    el.classList.remove('bg-gray-100', 'border-l-2', 'border-blue-600');
+                }
+            });
+        }
+
+        function applyFilterActiveStyles() {
+            document.querySelectorAll('.filter-item').forEach(el => {
+                if (el.classList.contains('active')) {
+                    el.classList.add('bg-gray-100', 'border-l-2', 'border-blue-600');
+                } else {
+                    el.classList.remove('bg-gray-100', 'border-l-2', 'border-blue-600');
+                }
+            });
         }
         
         function matchesFilter(task, filter) {

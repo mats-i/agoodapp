@@ -1,0 +1,3111 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AGoodApp</title>
+    <script>
+        // Initialize theme early to avoid FOUC
+        (function () {
+            try {
+                const saved = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (saved === 'dark' || (!saved && prefersDark)) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            } catch (_) {
+                // noop
+            }
+        })();
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            font-size: 12px;
+            transition: background-color 0.2s;
+        }
+        
+        /* Panels & drawers visibility */
+        .task-form { display: none; }
+        .task-form.show { display: block; }
+
+        .right-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            height: 100vh;
+            width: 380px;
+            max-width: 90vw;
+            background: #ffffff;
+            border-left: 1px solid #e5e7eb; /* gray-200 */
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+            transform: translateX(100%);
+            transition: transform 200ms ease;
+            z-index: 50;
+        }
+        .right-panel.show { transform: translateX(0); }
+        .right-panel-header { display:flex; align-items:center; justify-content:space-between; padding: 12px 16px; border-bottom: 1px solid #e5e7eb; }
+        .right-panel-content { height: calc(100vh - 54px); overflow: auto; padding: 12px 16px; }
+
+        /* Filter modal */
+        .filter-modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.4);
+            z-index: 60;
+        }
+        .filter-modal.show { display: flex; }
+        .filter-modal-content {
+            width: min(640px, calc(100vw - 2rem));
+            max-height: calc(100vh - 2rem);
+            overflow: auto;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+        }
+        .filter-modal-header { display:flex; align-items:center; justify-content:space-between; padding: 12px 16px; border-bottom: 1px solid #e5e7eb; }
+        .filter-modal-body { padding: 12px 16px; }
+
+        .filter-action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .filter-item.active .filter-action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .sidebar.collapsed .filter-section {
+            display: none;
+        }
+
+        /* Small styling for hamburger */
+        .hamburger-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+            background: #ffffff;
+            cursor: pointer;
+        }
+        .hamburger-btn:hover { background: #f3f4f6; }
+        
+        /* Multiple select styling */
+        select[multiple] {
+            height: auto;
+            min-height: 80px;
+        }
+        
+        select[multiple] option:checked {
+            background: #007aff;
+            color: white;
+        }
+    </style>
+  <script type="module" crossorigin src="/assets/index-BxShP1n8.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-CCDkSJpI.css">
+</head>
+<body class="min-h-screen bg-gray-50 text-gray-900 antialiased">
+    <div id="login-view" class="hidden max-w-md mx-auto mt-16 p-6 border border-gray-200 rounded-lg bg-white shadow-sm" style="display:none; max-width: 420px; margin: 60px auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 8px;">
+        <h2 style="margin-bottom: 12px;">Logga in</h2>
+        <p style="margin-bottom: 12px; color:#666;">Du måste logga in för att använda appen.</p>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom: 10px;">
+            <input id="login-email" type="email" placeholder="E-post för magic link" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:6px;">
+            <button id="login-magic-btn" class="btn btn-primary bg-blue-600 hover:bg-blue-700 text-white">Skicka länk</button>
+        </div>
+        <button id="login-github-btn" class="btn btn-secondary bg-gray-700 hover:bg-gray-800 text-white" style="width:100%;">Logga in med GitHub</button>
+    </div>
+
+        <!-- Top bar -->
+    <header class="topbar w-full border-b border-gray-200">
+            <div class="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <button class="hamburger-btn icon-btn pressable" onclick="toggleSidebar()" title="Meny">☰</button>
+                    <span class="text-xl font-semibold">AGoodApp</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <!-- Primary action lives in main content header; removed duplicate here -->
+                </div>
+            </div>
+        </header>
+
+    <div class="app-container grid grid-cols-[260px_1fr] gap-6 mx-auto max-w-7xl px-4 py-6" id="app-view">
+        <!-- Sidebar -->
+    <div class="sidebar bg-white border border-gray-200 rounded-lg p-4 shadow-sm flex flex-col" id="sidebar">
+            <div class="sidebar-header">
+                <!-- Simplified: hamburger moved to top bar -->
+            </div>
+            
+            <div class="project-list space-y-1">
+                <div class="project-item active flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50 cursor-pointer" data-project="all">
+                    <span class="flex items-center gap-2"><span class="icon">📋</span><span class="name">Alla uppgifter</span></span>
+                    <span class="count text-xs inline-flex min-w-5 justify-center" id="count-all">0</span>
+                </div>
+                
+                <div class="project-item flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50 cursor-pointer" data-project="inbox">
+                    <span class="flex items-center gap-2"><span class="icon">🔔</span><span class="name">Inbox</span></span>
+                    <span class="count text-xs inline-flex min-w-5 justify-center" id="count-inbox">0</span>
+                </div>
+                
+                <div class="project-item flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50 cursor-pointer" data-project="work">
+                    <span class="flex items-center gap-2"><span class="icon">💼</span><span class="name">Arbete</span></span>
+                    <span class="count text-xs inline-flex min-w-5 justify-center" id="count-work">0</span>
+                </div>
+                
+                <div class="project-item flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50 cursor-pointer" data-project="personal">
+                    <span class="flex items-center gap-2"><span class="icon">🏠</span><span class="name">Personligt</span></span>
+                    <span class="count text-xs inline-flex min-w-5 justify-center" id="count-personal">0</span>
+                </div>
+                
+                <div class="project-item flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50 cursor-pointer" data-project="settings">
+                    <span class="flex items-center gap-2"><span class="icon">⚙️</span><span class="name">Inställningar</span></span>
+                    <span class="count text-xs inline-flex min-w-5 justify-center"></span>
+                </div>
+                
+                <!-- Saved Filters -->
+                <div class="filter-section mt-5 pt-4 border-t border-gray-200" id="saved-filters">
+                    <div class="filter-section-header px-5 pb-2 flex justify-between items-center">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Filter</span>
+                        <button id="new-filter-btn" class="btn text-xs px-2.5 py-1 rounded border border-gray-300 hover:bg-gray-100 cursor-pointer">+ Nytt</button>
+                    </div>
+                    <div id="filter-list" class="space-y-1 px-1">
+                        <!-- Saved filters will be populated here -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="new-project">
+                <input type="text" placeholder="Nytt projekt..." onkeypress="handleNewProject(event)">
+            </div>
+
+            <!-- User dropdown footer -->
+            <div class="mt-auto pt-4 border-t border-gray-200">
+                <div class="relative" id="user-dropdown">
+                    <button
+                        id="user-menu-button"
+                        type="button"
+                        class="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-100"
+                        aria-expanded="false"
+                        aria-haspopup="menu"
+                    >
+                        <div
+                            id="user-avatar"
+                            class="h-8 w-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-semibold"
+                        >
+                            G
+                        </div>
+                        <div class="flex-1 min-w-0 text-left">
+                            <div id="user-name" class="text-sm font-medium truncate">Gäst</div>
+                            <div id="user-email" class="text-xs text-gray-500 truncate">Ej inloggad</div>
+                        </div>
+                        <svg class="h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 011.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+
+                    <div
+                        id="user-menu-items"
+                        class="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg py-1 hidden z-10"
+                        role="menu"
+                        aria-labelledby="user-menu-button"
+                    >
+                        <button id="logout-dropdown-btn" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50">Logga ut</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+    <div class="main-content bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+            <div class="main-header">
+                <h2 id="main-title" class="text-xl font-semibold">Alla uppgifter</h2>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button id="theme-toggle" class="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" title="Växla tema">🌓</button>
+                    <div class="status-indicator" id="status-indicator">💾 Local Mode</div>
+                </div>
+            </div>
+
+            <!-- Main Task View -->
+            <div id="main-view">
+                <div class="tabs flex items-center justify-between border-b border-gray-200 mb-4">
+                    <div class="tabs-left flex gap-1">
+                        <div class="tab active px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer" onclick="switchTab('outline')">📋 Outline</div>
+                        <div class="tab px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer" onclick="switchTab('calendar')">📅 Kalender</div>
+                        <div class="tab px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer" onclick="switchTab('assignees')">👤 Vem?</div>
+                    </div>
+                    <button class="add-task-btn btn btn-primary pressable hover-lift" onclick="showTaskForm()">+ Ny</button>
+                </div>
+
+                <div class="content-area">
+                    <!-- Task Form -->
+                    <div class="task-form" id="task-form">
+                        <h3 id="form-title">Ny uppgift</h3>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Uppgift</label>
+                                <input type="text" id="task-title" placeholder="Vad ska göras?">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Typ</label>
+                                <div class="type-switch">
+                                    <span>📝 Anteckning</span>
+                                    <div class="switch active" onclick="toggleTaskType()" id="type-switch">
+                                    </div>
+                                    <span>✓ Todo</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Prioritet</label>
+                                <select id="task-priority">
+                                    <option value="low">Låg</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="high">Hög</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Ansvarig</label>
+                                <select id="task-assignee">
+                                    <option value="mats" selected>Mats</option>
+                                    <option value="anna">Anna</option>
+                                    <option value="erik">Erik</option>
+                                    <option value="sara">Sara</option>
+                                    <option value="johan">Johan</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Deadline</label>
+                                <input type="date" id="task-deadline">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Agilt</label>
+                                <select id="task-agile">
+                                    <option value="later" selected>Later</option>
+                                    <option value="next">Next</option>
+                                    <option value="now">Now</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Uppsk. tid (h)</label>
+                                <input type="number" id="task-estimated-hours" placeholder="t.ex. 2.5" step="0.25" min="0">
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions flex gap-2">
+                            <button class="btn btn-secondary px-3 py-2 rounded border border-gray-300 hover:bg-gray-100" onclick="hideTaskForm()">Avbryt</button>
+                            <button class="btn btn-primary px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700" onclick="saveTask()" id="save-btn">Lägg till</button>
+                        </div>
+                    </div>
+
+                    <!-- Task List -->
+                    <div id="outline-view">
+                        <div class="inline-add">
+                            <div class="inline-add-input-wrapper">
+                                <div class="inline-add-icon">＋</div>
+                                <div class="inline-add-stack">
+                                    <textarea id="inline-add-input" rows="1" placeholder="Ny uppgift…  (tips: p:high  2025-09-01  imorgon  fredag  nästa måndag  @mats  #now)" onkeydown="handleInlineAddKeydown(event)" oninput="handleInlineAddInput(event)"></textarea>
+                                    <div id="inline-add-chips" class="inline-add-chips"></div>
+                                    <div id="inline-suggest" class="inline-suggest hidden" role="listbox" aria-label="Förslag"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <ul class="task-list space-y-2" id="task-list">
+                            <!-- Tasks will be dynamically populated here -->
+                        </ul>
+                    </div>
+
+                    <!-- Calendar View -->
+                    <div id="calendar-view" style="display: none;">
+                        <div class="calendar-section overdue">
+                            <h3>🔴 Försenade <span class="task-count" id="overdue-count">0</span></h3>
+                            <ul class="task-list space-y-2" id="overdue-tasks"></ul>
+                        </div>
+                        
+                        <div class="calendar-section today">
+                            <h3>🟡 Idag <span class="task-count" id="today-count">0</span></h3>
+                            <ul class="task-list space-y-2" id="today-tasks"></ul>
+                        </div>
+                        
+                        <div class="calendar-section upcoming">
+                            <h3>🟢 Kommande <span class="task-count" id="upcoming-count">0</span></h3>
+                            <ul class="task-list space-y-2" id="upcoming-tasks"></ul>
+                        </div>
+                        
+                        <div class="calendar-section">
+                            <h3>⚪ Ingen deadline <span class="task-count" id="no-deadline-count">0</span></h3>
+                            <ul class="task-list space-y-2" id="no-deadline-tasks"></ul>
+                        </div>
+                    </div>
+
+                    <!-- Assignees View -->
+                    <div id="assignees-view" style="display: none;">
+                        <div id="assignees-content">
+                            <!-- Assignee groups will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inbox View -->
+            <div id="inbox-view" style="display: none;">
+                <div class="tabs">
+                    <div class="tab active">🔔 Inbox</div>
+                </div>
+                
+                <div class="inbox-content">
+                    <div class="inbox-filters">
+                        <button class="filter-btn active" onclick="setInboxFilter('all')">Alla notiser</button>
+                        <button class="filter-btn" onclick="setInboxFilter('unread')">Bara nya</button>
+                    </div>
+                    
+                    <div id="notifications-list">
+                        <!-- Notifications will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings View -->
+            <div id="settings-view" style="display: none;">
+                <div class="tabs">
+                    <div class="tab active">⚙️ Inställningar</div>
+                </div>
+                
+                <div class="settings-content">
+                    <div class="settings-section">
+                        <h3>Data & Backup</h3>
+                        <div class="settings-actions">
+                            <button class="btn btn-secondary" onclick="exportData()">💾 Exportera data</button>
+                            <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">📁 Importera data</button>
+                            <input type="file" id="import-file" accept=".json" style="display: none" onchange="importData(event)">
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h3>Synkronisering</h3>
+                        <div class="settings-actions">
+                            <button class="btn btn-secondary" onclick="syncFromSupabase()">🔄 Synka från Supabase</button>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h3>Farlig zon</h3>
+                        <div class="settings-actions">
+                            <button class="btn btn-danger" onclick="clearAllData()">🗑️ Rensa all data</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel" id="right-panel">
+            <div class="right-panel-header">
+                <h3 id="right-panel-title">Redigera uppgift</h3>
+                <button class="close-panel-btn" onclick="hideRightPanel()">✕</button>
+            </div>
+            
+            <div class="right-panel-content">
+                <!-- Task edit form will be populated here -->
+                <div id="edit-form">
+                    <div class="form-group">
+                        <label>Uppgift</label>
+                        <input type="text" id="edit-task-title" placeholder="Vad ska göras?">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Typ</label>
+                            <div class="type-switch">
+                                <span>📝 Anteckning</span>
+                                <div class="switch active" onclick="toggleEditTaskType()" id="edit-type-switch">
+                                </div>
+                                <span>✓ Todo</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Prioritet</label>
+                            <select id="edit-task-priority">
+                                <option value="low">Låg</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">Hög</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Ansvarig</label>
+                            <select id="edit-task-assignee">
+                                <option value="mats">Mats</option>
+                                <option value="anna">Anna</option>
+                                <option value="erik">Erik</option>
+                                <option value="sara">Sara</option>
+                                <option value="johan">Johan</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Deadline</label>
+                            <input type="date" id="edit-task-deadline">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Agilt</label>
+                            <select id="edit-task-agile">
+                                <option value="later">Later</option>
+                                <option value="next">Next</option>
+                                <option value="now">Now</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Uppsk. tid (h)</label>
+                            <input type="number" id="edit-task-estimated-hours" placeholder="t.ex. 2.5" step="0.25" min="0">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Skapad</label>
+                            <input type="text" id="edit-task-created" readonly style="background: #f5f5f7; color: #86868b;">
+                        </div>
+                        <div class="form-group">
+                            <label>Avklarad</label>
+                            <input type="text" id="edit-task-completed" readonly style="background: #f5f5f7; color: #86868b;">
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button class="btn btn-secondary" onclick="hideRightPanel()">Avbryt</button>
+                        <button class="btn btn-primary" onclick="saveEditedTask()">Spara</button>
+                    </div>
+                </div>
+                
+                <!-- Notes Section -->
+                <div class="notes-section">
+                    <h4>Anteckningar</h4>
+                    
+                    <div id="notes-list">
+                        <!-- Existing notes will be populated here -->
+                    </div>
+                    
+                    <div class="form-group">
+                        <textarea 
+                            id="new-note-input" 
+                            class="new-note-input" 
+                            placeholder="Skriv en anteckning... Använd @användarnamn för att nämna andra"
+                            oninput="handleNoteInput()"
+                            onkeydown="handleNoteKeydown(event)">
+                        </textarea>
+                        <div class="new-note-actions">
+                            <button class="btn btn-secondary" onclick="clearNewNote()">Avbryt</button>
+                            <button class="btn btn-primary" onclick="saveNewNote()">Spara anteckning</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let tasks = [];
+        let projects = ['all', 'work', 'personal'];
+        let currentProject = 'all';
+        let currentView = 'main';
+        let currentTab = 'outline';
+        let currentTaskType = 'todo';
+        let editingTask = null;
+        let currentEditTaskType = 'todo';
+        let inboxFilter = 'all';
+        let notifications = [];
+        let savedFilters = [];
+        let activeFilter = null;
+        let currentUser = 'mats'; // För demo, senare från inloggning
+    // Optional multi-tenant scoping
+    let supportsUserId = null; // null=unknown, true/false
+    // Connectivity & sync helpers
+    let isOnline = navigator.onLine;
+    let pendingOps = []; // queue of {type:'upsert'|'delete', payload}
+        
+        // Supabase configuration
+        const SUPABASE_URL = 'https://tazwiywfzpmyqbmmkhpc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhendpeXdmenBteXFibW1raHBjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxOTg2NzMsImV4cCI6MjA3MTc3NDY3M30.GwC80boqAj4Z78qt3BIG-iau1QJuZiFe058vWtFBCxg';
+        
+    let supabaseClient;
+    let useSupabase = false;
+    const REQUIRE_AUTH = true; // Enforce login to access the app
+        
+        // Initialize Supabase (v2 via module shim)
+        console.log('Initializing app...');
+        document.addEventListener('supabase-ready', () => {
+            try {
+                supabaseClient = window.supabaseClient;
+                console.log('Supabase client initialized');
+                // Auth: wire listeners
+                initAuth();
+                // Gate app behind auth when required
+                ensureAuthenticatedThenBoot();
+            } catch (error) {
+                console.log('Supabase initialization failed:', error);
+                useSupabase = false;
+                updateStatusIndicator();
+            }
+        });
+
+        async function ensureAuthenticatedThenBoot() {
+            if (!supabaseClient) return;
+            try {
+                const { data } = await supabaseClient.auth.getSession();
+                const session = data?.session || null;
+                if (REQUIRE_AUTH && !session) {
+                    showLogin();
+                    return;
+                }
+                // Proceed to test and load
+                hideLogin();
+                await detectUserIdColumn();
+                await testSupabaseConnection();
+                await loadTasks();
+            } catch (e) {
+                console.warn('Auth gating error:', e);
+                showLogin();
+            }
+        }
+
+        // --- Auth wiring (magic link + GitHub) ---
+        function showLogin() {
+            const login = document.getElementById('login-view');
+            const app = document.getElementById('app-view');
+            if (login) login.style.display = 'block';
+            if (app) app.style.display = 'none';
+        }
+
+        function hideLogin() {
+            const login = document.getElementById('login-view');
+            const app = document.getElementById('app-view');
+            if (login) login.style.display = 'none';
+            if (app) app.style.display = '';
+        }
+
+        async function logoutUser() {
+            try {
+                if (supabaseClient?.auth) {
+                    await supabaseClient.auth.signOut({ scope: 'global' });
+                }
+            } catch (e) {
+                console.warn('Sign out error:', e);
+            } finally {
+                try { setUserDropdown(null); } catch (_) {}
+                useSupabase = false;
+                updateStatusIndicator();
+                showLogin();
+                // Fallback: if session still present (edge cases), force a soft reset
+                try {
+                    const { data } = await supabaseClient.auth.getSession();
+                    if (data?.session) {
+                        setTimeout(() => window.location.reload(), 50);
+                    }
+                } catch (_) { /* noop */ }
+            }
+        }
+
+        // --- User dropdown helpers ---
+        function setUserDropdown(session) {
+            try {
+                const user = session?.user || null;
+                const email = user?.email || 'Ej inloggad';
+                const name = user?.user_metadata?.name || user?.user_metadata?.full_name || (user ? (email.split('@')[0] || 'Gäst') : 'Gäst');
+                const avatar = (name?.[0] || 'G').toUpperCase();
+
+                const nameEl = document.getElementById('user-name');
+                const emailEl = document.getElementById('user-email');
+                const avatarEl = document.getElementById('user-avatar');
+                if (nameEl) nameEl.textContent = user ? name : 'Gäst';
+                if (emailEl) emailEl.textContent = email;
+                if (avatarEl) avatarEl.textContent = avatar;
+
+                const logoutBtn = document.getElementById('logout-dropdown-btn');
+                if (logoutBtn) {
+                    logoutBtn.disabled = !user;
+                    logoutBtn.classList.toggle('opacity-50', !user);
+                    logoutBtn.classList.toggle('cursor-not-allowed', !user);
+                }
+            } catch (_) {}
+        }
+
+        function initAuth() {
+            if (!supabaseClient) return;
+            // Attach button handlers once
+            try {
+                const magicBtn = document.getElementById('login-magic-btn');
+                const emailInput = document.getElementById('login-email');
+                const githubBtn = document.getElementById('login-github-btn');
+
+                if (magicBtn && emailInput && !magicBtn._wired) {
+                    magicBtn._wired = true;
+                    magicBtn.addEventListener('click', async () => {
+                        const email = (emailInput.value || '').trim();
+                        if (!email) return alert('Fyll i din e-post.');
+                        try {
+                            await supabaseClient.auth.signInWithOtp({
+                                email,
+                                options: {
+                                    emailRedirectTo: window.location.href,
+                                },
+                            });
+                            alert('Magic link skickad! Kolla din e-post.');
+                        } catch (e) {
+                            alert('Fel vid inloggning: ' + (e?.message || e));
+                        }
+                    });
+                }
+
+                if (githubBtn && !githubBtn._wired) {
+                    githubBtn._wired = true;
+                    githubBtn.addEventListener('click', async () => {
+                        try {
+                            const origin = window.location.origin || '';
+                            const isHttp = /^https?:/i.test(origin);
+                            const options = isHttp ? { redirectTo: origin } : {};
+                            await supabaseClient.auth.signInWithOAuth({ provider: 'github', options });
+                        } catch (e) {
+                            const msg = e?.message || String(e);
+                            if (/provider is not enabled|Unsupported provider/i.test(msg)) {
+                                alert('GitHub-inloggning är inte aktiverad i Supabase. Aktivera providern i Supabase → Authentication → Providers och konfigurera Client ID/Secret. I GitHub: sätt Authorization callback URL till ' +
+                                      'https://tazwiywfzpmyqbmmkhpc.supabase.co/auth/v1/callback.\nLägg även till din app-URL (t.ex. ' + window.location.origin + ') under Redirect URLs i Supabase.');
+                            } else if (/redirect|not permitted|not allowed|invalid\s*redirect|URL must be absolute/i.test(msg)) {
+                                const origin = window.location.origin;
+                                alert('Ogiltig eller ej tillåten redirect URL.\n\nGör så här:\n1) I Supabase → Authentication → URL Configuration: sätt "Site URL" till din app-URL.\n2) I Supabase → Authentication → Providers → GitHub: se till att Authorization callback URL är\n   https://tazwiywfzpmyqbmmkhpc.supabase.co/auth/v1/callback\n3) Lägg till följande under "Redirect URLs":\n   - ' + origin + '\n\nTips: Om du kör appen från filsystemet (file://) kan du starta dev-servern (t.ex. http://localhost:5173) och använda den URL:en.');
+                            } else {
+                                alert('Fel vid GitHub-inloggning: ' + msg);
+                            }
+                        }
+                    });
+                }
+            } catch (_) {}
+
+            // Session check and auth state subscription
+            supabaseClient.auth.getSession().then(({ data }) => {
+                const session = data?.session || null;
+                if (session) {
+                    hideLogin();
+                    detectUserIdColumn();
+                }
+            });
+
+        supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+                if (session) {
+                    hideLogin();
+                    await detectUserIdColumn();
+                    // Re-test with auth in place
+                    await testSupabaseConnection();
+                    await loadTasks();
+            setUserDropdown(session);
+                } else {
+                    // Signed out
+                    useSupabase = false;
+                    updateStatusIndicator();
+            if (REQUIRE_AUTH) showLogin();
+            setUserDropdown(null);
+                }
+            });
+        }
+
+        async function getSessionUserId() {
+            try {
+                const { data } = await supabaseClient.auth.getSession();
+                return data?.session?.user?.id || null;
+            } catch (_) { return null; }
+        }
+
+        async function detectUserIdColumn() {
+            if (!supabaseClient) return false;
+            try {
+                const { error } = await supabaseClient
+                    .from('tasks')
+                    .select('user_id', { head: true, count: 'exact' });
+                if (error) throw error;
+                supportsUserId = true;
+            } catch (_) {
+                supportsUserId = false;
+            }
+            return supportsUserId;
+        }
+        
+        async function testSupabaseConnection() {
+            try {
+                console.log('Testing Supabase connection...');
+                const { error } = await supabaseClient
+                    .from('tasks')
+                    .select('id', { count: 'exact', head: true });
+                
+                if (error) throw error;
+                
+                console.log('✅ Supabase connection successful!');
+                useSupabase = true;
+                updateStatusIndicator();
+                
+                // Load tasks from Supabase
+                // Only load here if not already gated elsewhere
+                if (!REQUIRE_AUTH) loadTasks();
+            } catch (error) {
+                const msg = error?.message || String(error);
+                console.log('Supabase connection failed:', msg);
+                useSupabase = false;
+                updateStatusIndicator();
+                // If it's a permission/auth issue, show login instead of silently falling back
+                const status = error?.status || error?.code;
+                if (status === 401 || status === 403 || /permission|JWT|auth/i.test(msg)) {
+                    showLogin();
+                    return;
+                }
+                // When auth is required, do not fallback to local
+                if (!REQUIRE_AUTH) {
+                    // Load from localStorage as fallback
+                    loadTasks();
+                }
+            }
+        }
+        
+        function updateStatusIndicator() {
+            const indicator = document.getElementById('status-indicator');
+            if (useSupabase) {
+                indicator.textContent = isOnline ? '🌐 Supabase Connected' : '🛜 Offline (queueing)';
+                indicator.className = 'status-indicator';
+            } else {
+                if (REQUIRE_AUTH) {
+                    indicator.textContent = '🔒 Sign in required';
+                    indicator.className = 'status-indicator local';
+                } else {
+                indicator.textContent = '💾 Local Mode';
+                indicator.className = 'status-indicator local';
+                }
+            }
+            
+            // Hide after 3 seconds
+            setTimeout(() => {
+                indicator.style.opacity = '0';
+                setTimeout(() => indicator.style.display = 'none', 300);
+            }, 3000);
+        }
+
+        // Network listeners
+        window.addEventListener('online', () => { isOnline = true; updateStatusIndicator(); flushPendingOps(); });
+        window.addEventListener('offline', () => { isOnline = false; updateStatusIndicator(); });
+
+        // Retry helper
+        async function withRetry(fn, { retries = 3, baseDelay = 250 } = {}) {
+            let lastErr;
+            for (let i = 0; i < retries; i++) {
+                try {
+                    return await fn();
+                } catch (e) {
+                    lastErr = e;
+                    const delay = baseDelay * Math.pow(2, i) + Math.random() * 100;
+                    await new Promise(r => setTimeout(r, delay));
+                }
+            }
+            throw lastErr;
+        }
+
+        function chunk(arr, size) {
+            const out = [];
+            for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+            return out;
+        }
+
+        async function flushPendingOps() {
+            if (!useSupabase || !isOnline || pendingOps.length === 0) return;
+            const ops = [...pendingOps];
+            pendingOps = [];
+            for (const op of ops) {
+                try {
+                    if (op.type === 'upsert') {
+                        await upsertTasksSupabase(op.payload);
+                    } else if (op.type === 'delete') {
+                        await deleteTasksSupabase(op.payload);
+                    }
+                } catch (e) {
+                    console.warn('Re-queueing failed op:', op, e);
+                    pendingOps.push(op);
+                }
+            }
+        }
+
+        async function upsertTasksSupabase(items) {
+            const uid = await getSessionUserId();
+            const rows = items.map(t => (supportsUserId && uid ? { ...t, user_id: uid } : t));
+            const groups = chunk(rows, 50);
+            for (const g of groups) {
+                await withRetry(async () => {
+                    const { error } = await supabaseClient.from('tasks').upsert(g, { onConflict: 'id' });
+                    if (error) throw error;
+                });
+            }
+        }
+
+        async function deleteTasksSupabase(ids) {
+            const groups = chunk(ids, 50);
+            for (const g of groups) {
+                await withRetry(async () => {
+                    const { error } = await supabaseClient.from('tasks').delete().in('id', g);
+                    if (error) throw error;
+                });
+            }
+        }
+
+        // Simple toast notifications
+        function showToast(message, type = 'success') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.style.position = 'fixed';
+                container.style.right = '16px';
+                container.style.bottom = '16px';
+                container.style.display = 'flex';
+                container.style.flexDirection = 'column';
+                container.style.gap = '8px';
+                container.style.zIndex = '9999';
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.padding = '10px 12px';
+            toast.style.borderRadius = '8px';
+            toast.style.boxShadow = '0 4px 10px rgba(0,0,0,0.12)';
+            toast.style.color = type === 'error' ? '#991B1B' : '#065F46';
+            toast.style.background = type === 'error' ? '#FEE2E2' : '#D1FAE5';
+            toast.style.border = type === 'error' ? '1px solid #FCA5A5' : '1px solid #6EE7B7';
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 250ms ease';
+                setTimeout(() => toast.remove(), 260);
+            }, 2200);
+        }
+        
+        // Task management functions
+        async function loadTasks() {
+            try {
+                if (useSupabase) {
+                    console.log('Loading tasks from Supabase...');
+                    let query = supabaseClient
+                        .from('tasks')
+                        .select('*')
+                        .order('created_at', { ascending: true });
+                    const uid = await getSessionUserId();
+                    if (supportsUserId && uid) {
+                        query = query.eq('user_id', uid);
+                    }
+                    const { data, error } = await query;
+                        
+                    if (error) throw error;
+                    
+                    console.log('Tasks loaded from Supabase:', data);
+                    tasks = data || [];
+                } else {
+                    if (REQUIRE_AUTH) {
+                        showLogin();
+                        return;
+                    }
+                    console.log('💾 Loading tasks from localStorage...');
+                    const savedTasks = localStorage.getItem('agoodapp_tasks');
+                    tasks = savedTasks ? JSON.parse(savedTasks) : [];
+                    console.log('Tasks loaded from localStorage:', tasks);
+                }
+                
+                // Migrate old task format to new format
+                tasks = tasks.map(task => migrateTaskFormat(task));
+                
+                // Load notifications
+                loadNotifications();
+                
+                renderTasks();
+                updateProjectCounts();
+                updateInboxCount();
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+                const msg = error?.message || String(error);
+                const status = error?.status || error?.code;
+                if (status === 401 || status === 403 || /permission|JWT|auth/i.test(msg)) {
+                    showLogin();
+                    return;
+                }
+                if (!REQUIRE_AUTH) {
+                    // Fallback to localStorage
+                    const savedTasks = localStorage.getItem('agoodapp_tasks');
+                    tasks = savedTasks ? JSON.parse(savedTasks) : [];
+                    // Migrate old tasks here too
+                    tasks = tasks.map(task => migrateTaskFormat(task));
+                    renderTasks();
+                    updateProjectCounts();
+                    updateInboxCount();
+                }
+            }
+        }
+        
+        function migrateTaskFormat(task) {
+            // Ensure task has all required fields with proper defaults
+            return {
+                id: task.id ? String(task.id) : generateId(), // Ensure string ID
+                title: task.title || 'Untitled Task',
+                type: task.type || 'todo',
+                priority: task.priority || 'medium',
+                assignee: task.assignee || currentUser,
+                deadline: task.deadline || null,
+                project: task.project || 'work',
+                completed: Boolean(task.completed),
+                parent_id: task.parent_id || null,
+                collapsed: Boolean(task.collapsed),
+                notes: Array.isArray(task.notes) ? task.notes : [],
+                agile: task.agile || 'later',
+                estimated_hours: task.estimated_hours || null,
+                created_at: task.created_at || new Date().toISOString(),
+                completed_at: task.completed_at || null
+            };
+        }
+        
+        async function saveTasks() {
+            try {
+                // Always save to localStorage as backup
+                localStorage.setItem('agoodapp_tasks', JSON.stringify(tasks));
+                console.log('💾 Tasks saved to localStorage');
+                
+                if (useSupabase) {
+                    console.log('📤 Saving tasks to Supabase...');
+                    let lastSavedId = tasks.length ? tasks[tasks.length - 1].id : null;
+                    if (!isOnline) {
+                        pendingOps.push({ type: 'upsert', payload: tasks });
+                        showToast('🛜 Offline — köar ändringar');
+                    } else {
+                        await upsertTasksSupabase(tasks);
+                        console.log('✅ Tasks saved to Supabase successfully');
+                    }
+
+                    // Verify last write by re-selecting the last saved id
+                    try {
+                        if (lastSavedId) {
+                            const uid = await getSessionUserId();
+                            let q = supabaseClient.from('tasks').select('id').eq('id', lastSavedId).limit(1);
+                            if (supportsUserId && uid) q = q.eq('user_id', uid);
+                            const { data, error } = isOnline ? await q : { data: null, error: null };
+                            if (!isOnline) {
+                                showToast('🛜 Offline — sparat lokalt');
+                            } else if (error) throw error;
+                            else if (Array.isArray(data) && data.length === 1) {
+                                showToast('✅ Sparat i Supabase');
+                            } else {
+                                showToast('⚠️ Kunde inte verifiera sparningen', 'error');
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Post-save verify failed:', e);
+                        showToast('⚠️ Verifiering misslyckades', 'error');
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error saving tasks:', error);
+                // Data is still saved in localStorage
+                showToast('❌ Fel vid sparande i Supabase', 'error');
+            }
+        }
+        
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        // Inline add (Things-like quick entry)
+        async function handleInlineAddKeydown(event) {
+            const input = event.target;
+            // Suggestion navigation
+            if (inlineSuggestState.open) {
+                if (event.key === 'ArrowDown' || (event.key === 'Tab' && !event.shiftKey)) {
+                    event.preventDefault();
+                    inlineSuggestState.index = (inlineSuggestState.index + 1) % inlineSuggestState.items.length;
+                    renderInlineSuggest();
+                    return;
+                }
+                if (event.key === 'ArrowUp' || (event.key === 'Tab' && event.shiftKey)) {
+                    event.preventDefault();
+                    inlineSuggestState.index = (inlineSuggestState.index - 1 + inlineSuggestState.items.length) % inlineSuggestState.items.length;
+                    renderInlineSuggest();
+                    return;
+                }
+                if (event.key === 'Enter') {
+                    // Accept suggestion instead of submitting task if menu is open
+                    event.preventDefault();
+                    applySuggestion(inlineSuggestState.index);
+                    return;
+                }
+                if (event.key === 'Escape') {
+                    inlineSuggestClose();
+                    return;
+                }
+            }
+            if (event.key === 'Enter' && event.shiftKey) {
+                // Allow newline
+                return;
+            }
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            const parsed = parseInlineEntry(input.value || '');
+            if (!parsed.title) return;
+
+            // If a project was specified, ensure it exists
+            if (parsed.project) {
+                const reserved = new Set(['all','inbox','settings']);
+                const name = String(parsed.project).trim();
+                if (name && !reserved.has(name.toLowerCase()) && !projects.includes(name)) {
+                    addProject(name);
+                }
+            }
+
+            const task = {
+                id: generateId(),
+                title: parsed.title,
+                type: 'todo',
+                priority: parsed.priority || 'medium',
+                assignee: parsed.assignee || currentUser,
+                deadline: parsed.deadline || null,
+                project: parsed.project ? parsed.project : (currentProject === 'all' ? 'work' : currentProject),
+                completed: false,
+                parent_id: null,
+                collapsed: false,
+                notes: [],
+                agile: parsed.agile || 'later',
+                estimated_hours: parsed.estimated_hours || null,
+                created_at: new Date().toISOString(),
+                completed_at: null
+            };
+
+            tasks.push(task);
+            await saveTasks();
+            renderTasks();
+            updateProjectCounts();
+            input.value = '';
+            document.getElementById('inline-add-chips').innerHTML = '';
+        }
+
+        function handleInlineAddInput(event) {
+            const input = event.target;
+            autoResizeTextarea(input, 72, 120);
+            const parsed = parseInlineEntry(input.value || '');
+            renderInlineChips(parsed);
+            computeSuggestions(input);
+        }
+
+        function autoResizeTextarea(el, min = 72, max = 160) {
+            el.style.height = 'auto';
+            const next = Math.max(min, Math.min(max, el.scrollHeight));
+            el.style.height = next + 'px';
+        }
+
+    function parseInlineEntry(raw) {
+            const obj = { title: '', priority: null, assignee: null, deadline: null, agile: null, estimated_hours: null, project: null };
+            let text = (raw || '').trim();
+            const tokens = text.split(/\s+/);
+            const rest = [];
+            const weekdayMap = {
+                mandag: 1, tisdag: 2, onsdag: 3, torsdag: 4, fredag: 5, lordag: 6, sondag: 0,
+                måndag: 1, tisdag_: 2, onsdag_: 3, torsdag_: 4, fredag_: 5, lördag: 6, söndag: 0
+            };
+            let nextWeekFlag = false;
+            const today = new Date();
+            const norm = (s) => s
+                .toLowerCase()
+                .replaceAll('å', 'a')
+                .replaceAll('ä', 'a')
+                .replaceAll('ö', 'o');
+
+            const setDeadline = (d) => {
+                if (!obj.deadline && d instanceof Date && !isNaN(d)) {
+                    // normalize to YYYY-MM-DD (local date portion)
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const da = String(d.getDate()).padStart(2, '0');
+                    obj.deadline = `${y}-${m}-${da}`;
+                }
+            };
+
+            const nextWeekday = (targetDow, forceNextWeek = false) => {
+                const base = new Date();
+                const curr = base.getDay();
+                let delta = (targetDow - curr + 7) % 7;
+                if (forceNextWeek) delta += (delta === 0 ? 7 : 7);
+                const d = new Date(base);
+                d.setDate(base.getDate() + delta);
+                return d;
+            };
+
+            const nextWeekdayFrom = (base, targetDow) => {
+                const curr = base.getDay();
+                let delta = (targetDow - curr + 7) % 7;
+                const d = new Date(base);
+                d.setDate(base.getDate() + delta);
+                return d;
+            };
+
+            for (let i = 0; i < tokens.length; i++) {
+                const rawTok = tokens[i];
+                const tok = rawTok.trim();
+                if (!tok) continue;
+                const t = norm(tok);
+
+                // Priority p:low|medium|high
+                if (/^p:(low|medium|high)$/i.test(t)) {
+                    obj.priority = t.split(':')[1].toLowerCase();
+                    continue;
+                }
+                // Assignee @name
+                if (/^@\w+$/i.test(tok)) {
+                    obj.assignee = tok.slice(1).toLowerCase();
+                    continue;
+                }
+                // Agile #now|#next|#later
+                if (/^#(now|next|later)$/i.test(t)) {
+                    obj.agile = t.slice(1).toLowerCase();
+                    continue;
+                }
+                // Project #<name>
+                if (/^#[\w-]+$/i.test(tok)) {
+                    const name = tok.slice(1);
+                    const lowered = name.toLowerCase();
+                    if (!['now','next','later','all','inbox','settings'].includes(lowered)) {
+                        obj.project = name;
+                        continue;
+                    }
+                }
+                // Estimated hours h:2.5
+                if (/^h:(\d+(\.\d+)?)$/i.test(t)) {
+                    const num = parseFloat(t.split(':')[1]);
+                    if (!Number.isNaN(num)) obj.estimated_hours = num;
+                    continue;
+                }
+                // Explicit ISO date YYYY-MM-DD
+                if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+                    setDeadline(new Date(t + 'T00:00:00'));
+                    continue;
+                }
+                // Swedish short date DD/MM or DD/MM/YYYY or DD-MM(-YYYY)
+                const mShort = t.match(/^(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{4}))?$/);
+                if (mShort) {
+                    const dd = parseInt(mShort[1], 10);
+                    const mm = parseInt(mShort[2], 10) - 1;
+                    const yy = mShort[3] ? parseInt(mShort[3], 10) : today.getFullYear();
+                    const d = new Date(yy, mm, dd);
+                    setDeadline(d);
+                    continue;
+                }
+                // Natural words: idag, imorgon, i morgon, overmorgon, i overmorgon
+                if (t === 'idag') { setDeadline(today); continue; }
+                if (t === 'imorgon') { const d = new Date(); d.setDate(today.getDate() + 1); setDeadline(d); continue; }
+                if (t === 'overmorgon') { const d = new Date(); d.setDate(today.getDate() + 2); setDeadline(d); continue; }
+                if (t === 'i' && i + 1 < tokens.length && norm(tokens[i + 1]) === 'morgon') {
+                    const d = new Date(); d.setDate(today.getDate() + 1); setDeadline(d); i += 1; continue;
+                }
+                if (t === 'i' && i + 1 < tokens.length && norm(tokens[i + 1]) === 'overmorgon') {
+                    const d = new Date(); d.setDate(today.getDate() + 2); setDeadline(d); i += 1; continue;
+                }
+                // Flag for next week
+                if (t === 'nasta' || (t === 'nasta vecka')) { nextWeekFlag = true; continue; }
+                // Weekday names, possibly preceded by 'nästa'
+                if (t in weekdayMap) {
+                    const target = weekdayMap[t];
+                    setDeadline(nextWeekday(target, nextWeekFlag));
+                    nextWeekFlag = false;
+                    continue;
+                }
+                // Relative: om N dagar/veckor
+                if (t === 'om' && i + 1 < tokens.length) {
+                    const num = parseInt(tokens[i + 1], 10);
+                    const unit = tokens[i + 2] ? norm(tokens[i + 2]) : '';
+                    if (!Number.isNaN(num) && (unit.startsWith('dag') || unit.startsWith('veck'))) {
+                        const base = new Date();
+                        const add = unit.startsWith('dag') ? num : num * 7;
+                        base.setDate(today.getDate() + add);
+                        // Handle optional "på <weekday>"
+                        if (i + 3 < tokens.length && norm(tokens[i + 3]) === 'pa' && i + 4 < tokens.length) {
+                            const wdTok = norm(tokens[i + 4]);
+                            const target = weekdayMap[wdTok];
+                            if (typeof target === 'number') {
+                                const d2 = nextWeekdayFrom(base, target);
+                                setDeadline(d2);
+                                i += 4;
+                                continue;
+                            }
+                        }
+                        setDeadline(base);
+                        i += 2;
+                        continue;
+                    }
+                }
+                // Legacy due:YYYY-MM-DD still supported
+                if (/^due:\d{4}-\d{2}-\d{2}$/i.test(t)) {
+                    obj.deadline = t.split(':')[1];
+                    continue;
+                }
+
+                // Unrecognized → part of title
+                rest.push(rawTok);
+            }
+            obj.title = rest.join(' ').trim();
+            return obj;
+        }
+
+        function renderInlineChips(parsed) {
+            const wrap = document.getElementById('inline-add-chips');
+            if (!wrap) return;
+            const chips = [];
+            if (parsed.priority) chips.push(`<span class="chip chip-priority">prio: ${parsed.priority}</span>`);
+            if (parsed.deadline) {
+                const d = new Date(parsed.deadline + 'T00:00:00');
+                const label = isNaN(d) ? parsed.deadline : d.toLocaleDateString('sv-SE');
+                chips.push(`<span class="chip chip-deadline">${label}</span>`);
+            }
+            if (parsed.assignee) chips.push(`<span class="chip">@${parsed.assignee}</span>`);
+            if (parsed.agile) chips.push(`<span class="chip">#${parsed.agile}</span>`);
+            if (parsed.estimated_hours) chips.push(`<span class="chip">⏱ ${parsed.estimated_hours}h</span>`);
+            if (parsed.project) chips.push(`<span class="chip">#${parsed.project}</span>`);
+            wrap.innerHTML = chips.join(' ');
+        }
+
+    // --- Inline suggestions (weekdays, @assignees, #projects) ---
+        const WEEKDAYS_DISPLAY = ['måndag','tisdag','onsdag','torsdag','fredag','lördag','söndag'];
+        const WEEKDAYS_NORM = WEEKDAYS_DISPLAY.map(w => w.toLowerCase().replaceAll('å','a').replaceAll('ä','a').replaceAll('ö','o'));
+        let inlineSuggestState = { open:false, items:[], index:-1, start:0, end:0, kind:null };
+
+        function getAssignees() {
+            try {
+                const sel = document.getElementById('task-assignee');
+                if (!sel) return [];
+                const values = Array.from(sel.options).map(o => String(o.value || '').toLowerCase()).filter(Boolean);
+                return Array.from(new Set(values));
+            } catch { return []; }
+        }
+
+        function getTokenAtCursor(textarea) {
+            const pos = textarea.selectionStart || 0;
+            const v = textarea.value || '';
+            let s = pos, e = pos;
+            while (s > 0 && v[s-1] !== ' ' && v[s-1] !== '\n' && v[s-1] !== '\t') s--;
+            while (e < v.length && v[e] !== ' ' && v[e] !== '\n' && v[e] !== '\t') e++;
+            return { start:s, end:e, value: v.slice(s,e) };
+        }
+
+        function replaceToken(textarea, start, end, replacement) {
+            const v = textarea.value || '';
+            const before = v.slice(0, start);
+            const after = v.slice(end);
+            const next = before + replacement + after;
+            const caret = (before + replacement).length;
+            textarea.value = next;
+            textarea.setSelectionRange(caret, caret);
+            handleInlineAddInput({ target: textarea });
+        }
+
+        function computeSuggestions(textarea) {
+            const { start, end, value } = getTokenAtCursor(textarea);
+            const normTok = value.toLowerCase().replaceAll('å','a').replaceAll('ä','a').replaceAll('ö','o');
+            const items = [];
+            let kind = null;
+            if (value.startsWith('@')) {
+                const q = value.slice(1).toLowerCase();
+                const candidates = getAssignees();
+                const filtered = candidates.filter(c => !q || c.startsWith(q));
+                items.push(...filtered.map(n => ({ label:'@'+n, value:'@'+n })));
+                kind = 'assignee';
+            } else if (value.startsWith('#')) {
+                const q = value.slice(1).toLowerCase();
+                const reserved = new Set(['all','inbox','settings','now','next','later']);
+                const projItems = projects
+                    .filter(p => !reserved.has(p.toLowerCase()))
+                    .filter(p => !q || p.toLowerCase().startsWith(q))
+                    .map(p => ({ label: '#' + p, value: '#' + p }));
+                items.push(...projItems);
+                if (q && !projects.some(p => p.toLowerCase() === q) && !reserved.has(q)) {
+                    items.push({ label: `➕ Skapa projekt “${q}”`, value: '#' + q, create: true });
+                }
+                kind = 'project';
+            } else if (normTok && WEEKDAYS_NORM.some(w => w.startsWith(normTok))) {
+                WEEKDAYS_NORM.forEach((w,i) => {
+                    if (w.startsWith(normTok)) items.push({ label: WEEKDAYS_DISPLAY[i], value: WEEKDAYS_DISPLAY[i] });
+                });
+                kind = 'weekday';
+            } else {
+                inlineSuggestClose();
+                return;
+            }
+            if (items.length) {
+                inlineSuggestState = { open:true, items, index:0, start, end, kind };
+                renderInlineSuggest();
+            } else {
+                inlineSuggestClose();
+            }
+        }
+
+        function renderInlineSuggest() {
+            const el = document.getElementById('inline-suggest');
+            if (!el) return;
+            el.innerHTML = inlineSuggestState.items.map((it, idx) => `<div class="inline-suggest-item ${idx===inlineSuggestState.index?'active':''}" data-idx="${idx}" role="option">${it.label}</div>`).join('');
+            el.classList.remove('hidden');
+            // Mouse support
+            el.querySelectorAll('.inline-suggest-item').forEach(node => {
+                node.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    const idx = parseInt(node.getAttribute('data-idx'),10);
+                    applySuggestion(idx);
+                });
+            });
+        }
+
+        function inlineSuggestClose() {
+            inlineSuggestState.open = false;
+            const el = document.getElementById('inline-suggest');
+            if (el) el.classList.add('hidden');
+        }
+
+        function applySuggestion(idx) {
+            const ta = document.getElementById('inline-add-input');
+            const it = inlineSuggestState.items[idx];
+            if (!ta || !it) return;
+            if (inlineSuggestState.kind === 'project' && it.create) {
+                const name = (it.value || '').slice(1);
+                const reserved = new Set(['all','inbox','settings']);
+                if (name && !reserved.has(name.toLowerCase()) && !projects.includes(name)) {
+                    addProject(name);
+                }
+            }
+            replaceToken(ta, inlineSuggestState.start, inlineSuggestState.end, it.value);
+            inlineSuggestClose();
+        }
+        
+        function showTaskForm() {
+            document.getElementById('task-form').classList.add('show');
+            document.getElementById('task-title').focus();
+        }
+        
+        function hideTaskForm() {
+            document.getElementById('task-form').classList.remove('show');
+            clearTaskForm();
+        }
+        
+        function clearTaskForm() {
+            document.getElementById('task-title').value = '';
+            document.getElementById('task-priority').value = 'medium';
+            document.getElementById('task-assignee').value = currentUser; // Set to current user
+            document.getElementById('task-deadline').value = '';
+            document.getElementById('task-agile').value = 'later';
+            document.getElementById('task-estimated-hours').value = '';
+            
+            // Reset to todo
+            currentTaskType = 'todo';
+            const switchEl = document.getElementById('type-switch');
+            switchEl.classList.add('active');
+            
+            document.getElementById('form-title').textContent = 'Ny uppgift';
+            document.getElementById('save-btn').textContent = 'Lägg till';
+            editingTask = null;
+        }
+        
+        function toggleTaskType() {
+            const switchEl = document.getElementById('type-switch');
+            if (currentTaskType === 'todo') {
+                currentTaskType = 'note';
+                switchEl.classList.remove('active');
+            } else {
+                currentTaskType = 'todo';
+                switchEl.classList.add('active');
+            }
+        }
+        
+        async function saveTask() {
+            const title = document.getElementById('task-title').value.trim();
+            if (!title) return;
+            
+            const assigneeSelect = document.getElementById('task-assignee');
+            const assignee = assigneeSelect.value;
+            const estimatedHours = document.getElementById('task-estimated-hours').value;
+            
+            const task = {
+                id: editingTask ? editingTask.id : generateId(),
+                title: title,
+                type: currentTaskType,
+                priority: document.getElementById('task-priority').value,
+                assignee: assignee,
+                deadline: document.getElementById('task-deadline').value || null,
+                project: currentProject === 'all' ? 'work' : currentProject,
+                completed: editingTask ? editingTask.completed : false,
+                parent_id: null,
+                collapsed: false,
+                notes: editingTask ? editingTask.notes || [] : [],
+                agile: document.getElementById('task-agile').value,
+                estimated_hours: estimatedHours ? parseFloat(estimatedHours) : null,
+                created_at: editingTask ? editingTask.created_at : new Date().toISOString(),
+                completed_at: editingTask ? editingTask.completed_at : null
+            };
+            
+            if (editingTask) {
+                // Update existing task
+                const index = tasks.findIndex(t => t.id === editingTask.id);
+                if (index !== -1) {
+                    tasks[index] = task;
+                }
+            } else {
+                // Add new task
+                tasks.push(task);
+            }
+            
+            await saveTasks();
+            renderTasks();
+            updateProjectCounts();
+            hideTaskForm();
+        }
+        
+        function editTask(taskId) {
+            console.log('Editing task:', taskId); // Debug
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) {
+                console.log('Task not found:', taskId);
+                return;
+            }
+            
+            console.log('Found task:', task); // Debug
+            showRightPanel(task);
+        }
+        
+        function showRightPanel(task) {
+            console.log('Showing right panel for task:', task); // Debug
+            editingTask = task;
+            currentEditTaskType = task.type;
+            
+            // Populate form
+            document.getElementById('edit-task-title').value = task.title;
+            document.getElementById('edit-task-priority').value = task.priority;
+            document.getElementById('edit-task-assignee').value = task.assignee || currentUser;
+            document.getElementById('edit-task-deadline').value = task.deadline || '';
+            document.getElementById('edit-task-agile').value = task.agile || 'later';
+            document.getElementById('edit-task-estimated-hours').value = task.estimated_hours || '';
+            
+            // Set readonly fields
+            const createdDate = task.created_at ? new Date(task.created_at).toLocaleString('sv-SE') : '';
+            const completedDate = task.completed_at ? new Date(task.completed_at).toLocaleString('sv-SE') : 'Ej avklarad';
+            document.getElementById('edit-task-created').value = createdDate;
+            document.getElementById('edit-task-completed').value = completedDate;
+            
+            // Set type switch
+            const switchEl = document.getElementById('edit-type-switch');
+            if (task.type === 'todo') {
+                switchEl.classList.add('active');
+            } else {
+                switchEl.classList.remove('active');
+            }
+            
+            // Populate notes
+            renderNotes();
+            
+            const rightPanel = document.getElementById('right-panel');
+            console.log('Right panel element:', rightPanel); // Debug
+            rightPanel.classList.add('show');
+            console.log('Added show class, classes now:', rightPanel.className); // Debug
+        }
+        
+        function hideRightPanel() {
+            document.getElementById('right-panel').classList.remove('show');
+            editingTask = null;
+            clearNewNote();
+        }
+        
+        function toggleEditTaskType() {
+            const switchEl = document.getElementById('edit-type-switch');
+            if (currentEditTaskType === 'todo') {
+                currentEditTaskType = 'note';
+                switchEl.classList.remove('active');
+            } else {
+                currentEditTaskType = 'todo';
+                switchEl.classList.add('active');
+            }
+        }
+        
+        async function saveEditedTask() {
+            if (!editingTask) return;
+            
+            const title = document.getElementById('edit-task-title').value.trim();
+            if (!title) return;
+            
+            const estimatedHours = document.getElementById('edit-task-estimated-hours').value;
+            
+            editingTask.title = title;
+            editingTask.type = currentEditTaskType;
+            editingTask.priority = document.getElementById('edit-task-priority').value;
+            editingTask.assignee = document.getElementById('edit-task-assignee').value;
+            editingTask.deadline = document.getElementById('edit-task-deadline').value || null;
+            editingTask.agile = document.getElementById('edit-task-agile').value;
+            editingTask.estimated_hours = estimatedHours ? parseFloat(estimatedHours) : null;
+            
+            await saveTasks();
+            renderTasks();
+            updateProjectCounts();
+        }
+        
+        async function deleteTask(taskId) {
+            if (!confirm('Är du säker på att du vill ta bort denna uppgift?')) return;
+            
+            tasks = tasks.filter(task => task.id !== taskId);
+            
+            if (useSupabase) {
+                try {
+                    if (!isOnline) {
+                        pendingOps.push({ type: 'delete', payload: [taskId] });
+                        showToast('🛜 Offline — köar radering');
+                    } else {
+                        await deleteTasksSupabase([taskId]);
+                    }
+                } catch (error) {
+                    console.error('Error deleting task from Supabase:', error);
+                }
+            }
+            
+            await saveTasks();
+            renderTasks();
+            updateProjectCounts();
+        }
+        
+        async function toggleTaskComplete(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (!task || task.type !== 'todo') return;
+            
+            task.completed = !task.completed;
+            task.completed_at = task.completed ? new Date().toISOString() : null;
+            
+            await saveTasks();
+            renderTasks();
+            updateProjectCounts();
+            
+            // Update right panel if this task is being edited
+            if (editingTask && editingTask.id === taskId) {
+                const completedDate = task.completed_at ? new Date(task.completed_at).toLocaleString('sv-SE') : 'Ej avklarad';
+                document.getElementById('edit-task-completed').value = completedDate;
+            }
+        }
+        
+        // Notes management
+        function renderNotes() {
+            if (!editingTask) return;
+            
+            const notesList = document.getElementById('notes-list');
+            notesList.innerHTML = '';
+            
+            const notes = editingTask.notes || [];
+            
+            notes.forEach((note, index) => {
+                const noteEl = document.createElement('div');
+                noteEl.className = 'note-item';
+                noteEl.innerHTML = `
+                    <div class="note-content">${parseMentions(note.content)}</div>
+                    <div class="note-meta">
+                        <span>${new Date(note.created_at).toLocaleDateString('sv-SE')} ${new Date(note.created_at).toLocaleTimeString('sv-SE', {hour: '2-digit', minute: '2-digit'})}</span>
+                        <div class="note-actions">
+                            <button class="task-action-btn" onclick="editNote(${index})" title="Redigera">✏️</button>
+                            <button class="task-action-btn" onclick="deleteNote(${index})" title="Ta bort">🗑️</button>
+                        </div>
+                    </div>
+                `;
+                notesList.appendChild(noteEl);
+            });
+        }
+        
+        function parseMentions(content) {
+            // Replace @username with clickable mentions
+            return content.replace(/@(\w+)/g, '<span class="mention" onclick="showUserTasks(\'$1\')">@$1</span>');
+        }
+        
+        function handleNoteInput() {
+            const textarea = document.getElementById('new-note-input');
+            // Auto-expand textarea
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+        }
+        
+        function handleNoteKeydown(event) {
+            if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                event.preventDefault();
+                saveNewNote();
+            }
+        }
+        
+        async function saveNewNote() {
+            const content = document.getElementById('new-note-input').value.trim();
+            if (!content || !editingTask) return;
+            
+            const note = {
+                id: generateId(),
+                content: content,
+                author: currentUser,
+                created_at: new Date().toISOString()
+            };
+            
+            if (!editingTask.notes) {
+                editingTask.notes = [];
+            }
+            
+            editingTask.notes.push(note);
+            
+            // Check for mentions and create notifications
+            const mentions = content.match(/@(\w+)/g);
+            if (mentions) {
+                mentions.forEach(mention => {
+                    const username = mention.substring(1);
+                    if (username !== currentUser) {
+                        createNotification(username, editingTask, note);
+                    }
+                });
+            }
+            
+            await saveTasks();
+            await saveNotifications();
+            renderNotes();
+            clearNewNote();
+            updateInboxCount();
+        }
+        
+        function clearNewNote() {
+            const textarea = document.getElementById('new-note-input');
+            textarea.value = '';
+            textarea.style.height = 'auto';
+        }
+        
+        function editNote(index) {
+            if (!editingTask || !editingTask.notes || !editingTask.notes[index]) return;
+            
+            const note = editingTask.notes[index];
+            const newContent = prompt('Redigera anteckning:', note.content);
+            
+            if (newContent !== null && newContent.trim() !== '') {
+                editingTask.notes[index].content = newContent.trim();
+                saveTasks();
+                renderNotes();
+            }
+        }
+        
+        async function deleteNote(index) {
+            if (!editingTask || !editingTask.notes || !editingTask.notes[index]) return;
+            
+            if (!confirm('Är du säker på att du vill ta bort denna anteckning?')) return;
+            
+            editingTask.notes.splice(index, 1);
+            
+            await saveTasks();
+            renderNotes();
+        }
+        
+        // Notifications management
+        function createNotification(username, task, note) {
+            const notification = {
+                id: generateId(),
+                recipient: username,
+                task_id: task.id,
+                task_title: task.title,
+                note_content: note.content,
+                author: note.author,
+                created_at: new Date().toISOString(),
+                read: false,
+                handled: false
+            };
+            
+            notifications.push(notification);
+        }
+        
+        async function loadNotifications() {
+            try {
+                const saved = localStorage.getItem('agoodapp_notifications');
+                notifications = saved ? JSON.parse(saved) : [];
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+                notifications = [];
+            }
+        }
+        
+        async function saveNotifications() {
+            try {
+                localStorage.setItem('agoodapp_notifications', JSON.stringify(notifications));
+            } catch (error) {
+                console.error('Error saving notifications:', error);
+            }
+        }
+        
+        function renderNotifications() {
+            const list = document.getElementById('notifications-list');
+            list.innerHTML = '';
+            
+            let filteredNotifications = notifications.filter(n => n.recipient === currentUser);
+            
+            if (inboxFilter === 'unread') {
+                filteredNotifications = filteredNotifications.filter(n => !n.read);
+            }
+            
+            filteredNotifications
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .forEach(notification => {
+                    const notificationEl = document.createElement('div');
+                    notificationEl.className = `notification-item ${!notification.read ? 'unread' : ''}`;
+                    notificationEl.innerHTML = `
+                        <div class="notification-content">
+                            <strong>@${notification.author}</strong> nämnde dig i 
+                            <a href="#" class="notification-task-link" onclick="goToTask('${notification.task_id}')">${notification.task_title}</a>
+                            <div style="margin-top: 8px; font-size: 14px; color: #666;">
+                                "${notification.note_content}"
+                            </div>
+                        </div>
+                        <div class="notification-meta" style="margin-top: 8px; font-size: 12px; color: #999;">
+                            ${new Date(notification.created_at).toLocaleDateString('sv-SE')} ${new Date(notification.created_at).toLocaleTimeString('sv-SE', {hour: '2-digit', minute: '2-digit'})}
+                        </div>
+                        <div class="notification-actions">
+                            ${!notification.read ? `<button class="btn btn-secondary" onclick="markAsRead('${notification.id}')">Markera som läst</button>` : ''}
+                            ${!notification.handled ? `<button class="btn btn-primary" onclick="markAsHandled('${notification.id}')">Markera som hanterad</button>` : ''}
+                        </div>
+                    `;
+                    list.appendChild(notificationEl);
+                });
+            
+            if (filteredNotifications.length === 0) {
+                list.innerHTML = '<div style="text-align: center; color: #999; padding: 40px;">Inga notiser att visa</div>';
+            }
+        }
+        
+        async function markAsRead(notificationId) {
+            const notification = notifications.find(n => n.id === notificationId);
+            if (notification) {
+                notification.read = true;
+                await saveNotifications();
+                renderNotifications();
+                updateInboxCount();
+            }
+        }
+        
+        async function markAsHandled(notificationId) {
+            const notification = notifications.find(n => n.id === notificationId);
+            if (notification) {
+                notification.handled = true;
+                notification.read = true;
+                await saveNotifications();
+                renderNotifications();
+                updateInboxCount();
+            }
+        }
+        
+        function goToTask(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+            
+            // Switch to the task's project
+            selectProject(task.project);
+            showMainView();
+            
+            // Open the task in right panel
+            setTimeout(() => {
+                showRightPanel(task);
+            }, 100);
+        }
+        
+        function setInboxFilter(filter) {
+            inboxFilter = filter;
+            
+            // Update filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            renderNotifications();
+        }
+        
+        function updateInboxCount() {
+            const unreadCount = notifications.filter(n => n.recipient === currentUser && !n.read).length;
+            document.getElementById('count-inbox').textContent = unreadCount > 0 ? unreadCount : '';
+        }
+        
+        // View management
+        function showMainView() {
+            console.log('showMainView called'); // Debug
+            currentView = 'main';
+            document.getElementById('main-view').style.display = 'block';
+            document.getElementById('inbox-view').style.display = 'none';
+            document.getElementById('settings-view').style.display = 'none';
+            
+            // Update active project
+            document.querySelectorAll('.project-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            const activeItem = document.querySelector(`[data-project="${currentProject}"]`);
+            if (activeItem) {
+                activeItem.classList.add('active');
+            }
+
+            // Apply Tailwind styles to active item
+            applyProjectActiveStyles();
+        }
+        
+        function showInbox() {
+            console.log('showInbox called'); // Debug
+            currentView = 'inbox';
+            document.getElementById('main-view').style.display = 'none';
+            document.getElementById('inbox-view').style.display = 'block';
+            document.getElementById('settings-view').style.display = 'none';
+            
+            // Update active project
+            document.querySelectorAll('.project-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            document.querySelector('[data-project="inbox"]').classList.add('active');
+            
+            renderNotifications();
+
+            applyProjectActiveStyles();
+        }
+        
+        function showSettings() {
+            console.log('showSettings called'); // Debug
+            currentView = 'settings';
+            document.getElementById('main-view').style.display = 'none';
+            document.getElementById('inbox-view').style.display = 'none';
+            document.getElementById('settings-view').style.display = 'block';
+            
+            // Update active project
+            document.querySelectorAll('.project-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            document.querySelector('[data-project="settings"]').classList.add('active');
+
+            applyProjectActiveStyles();
+        }
+        
+        // Project management
+        function selectProject(projectId) {
+            console.log('selectProject called with:', projectId); // Debug
+            
+            if (projectId === 'inbox') {
+                showInbox();
+                return;
+            }
+            
+            if (projectId === 'settings') {
+                showSettings();
+                return;
+            }
+            
+            // Set project first, then clear any active filter without re-selecting project
+            currentProject = projectId;
+            clearFilter();
+            showMainView();
+            
+            // Update title
+            const projectNames = {
+                'all': 'Alla uppgifter',
+                'work': 'Arbete',
+                'personal': 'Personligt'
+            };
+            
+            document.getElementById('main-title').textContent = projectNames[projectId] || projectId;
+            
+            renderTasks();
+        }
+        
+        // Add click handlers to project items
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.project-item').forEach(item => {
+                if (!item.onclick) {
+                    item.addEventListener('click', function() {
+                        const project = this.getAttribute('data-project');
+                        if (project && project !== 'inbox' && project !== 'settings') {
+                            selectProject(project);
+                        }
+                    });
+                }
+            });
+        });
+        
+        function handleNewProject(event) {
+            if (event.key === 'Enter') {
+                const input = event.target;
+                const projectName = input.value.trim();
+                
+                if (projectName && !projects.includes(projectName)) {
+                    addProject(projectName);
+                    input.value = '';
+                }
+            }
+        }
+        
+        function addProject(name) {
+            projects.push(name);
+            
+            // Add to project list in sidebar
+            const projectList = document.querySelector('.project-list');
+            const newProject = document.createElement('div');
+            newProject.className = 'project-item';
+            newProject.setAttribute('data-project', name);
+            newProject.innerHTML = `
+                <span class="icon">📁</span>
+                <span class="name">${name}</span>
+                <span class="count">0</span>
+            `;
+            
+            newProject.addEventListener('click', () => selectProject(name));
+            
+            // Insert before settings
+            const settingsItem = document.querySelector('[data-project="settings"]');
+            projectList.insertBefore(newProject, settingsItem);
+            
+            updateProjectCounts();
+        }
+        
+        function updateProjectCounts() {
+            const counts = {
+                all: tasks.length,
+                work: tasks.filter(t => t.project === 'work').length,
+                personal: tasks.filter(t => t.project === 'personal').length
+            };
+            
+            // Update counts for all projects
+            projects.forEach(project => {
+                if (project !== 'all') {
+                    counts[project] = tasks.filter(t => t.project === project).length;
+                }
+            });
+            
+            // Update UI
+            Object.entries(counts).forEach(([project, count]) => {
+                const countEl = document.getElementById(`count-${project}`);
+                if (countEl) {
+                    countEl.textContent = count > 0 ? count : '';
+                }
+            });
+        }
+        
+        // Tab management
+        function switchTab(tabName) {
+            currentTab = tabName;
+            
+            // Update active tab
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            applyTabActiveStyles();
+            
+            // Show/hide views
+            if (tabName === 'outline') {
+                document.getElementById('outline-view').style.display = 'block';
+                document.getElementById('calendar-view').style.display = 'none';
+                document.getElementById('assignees-view').style.display = 'none';
+            } else if (tabName === 'calendar') {
+                document.getElementById('outline-view').style.display = 'none';
+                document.getElementById('calendar-view').style.display = 'block';
+                document.getElementById('assignees-view').style.display = 'none';
+                if (window.renderCalendarFromApi) {
+                    window.renderCalendarFromApi();
+                } else {
+                    renderCalendarView();
+                }
+            } else if (tabName === 'assignees') {
+                document.getElementById('outline-view').style.display = 'none';
+                document.getElementById('calendar-view').style.display = 'none';
+                document.getElementById('assignees-view').style.display = 'block';
+                renderAssigneesView();
+            }
+        }
+        
+        function renderTasks() {
+            if (currentTab === 'outline') {
+                renderOutlineView();
+            } else if (currentTab === 'calendar') {
+                renderCalendarView();
+            } else if (currentTab === 'assignees') {
+                renderAssigneesView();
+            }
+        }
+        
+        function renderOutlineView() {
+            const taskList = document.getElementById('task-list');
+            taskList.innerHTML = '';
+            
+            let filteredTasks;
+            
+            if (activeFilter) {
+                // Apply custom filter
+                filteredTasks = tasks.filter(task => matchesFilter(task, activeFilter));
+            } else {
+                // Apply project filter
+                filteredTasks = currentProject === 'all' 
+                    ? tasks 
+                    : tasks.filter(task => task.project === currentProject);
+            }
+            
+            filteredTasks
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .forEach(task => {
+                    const taskEl = createTaskElement(task);
+                    taskList.appendChild(taskEl);
+                });
+                
+            if (filteredTasks.length === 0) {
+                taskList.innerHTML = '<div style="text-align: center; color: #999; padding: 40px;">Inga uppgifter matchar filtret</div>';
+            }
+        }
+        
+    function createTaskElement(task) {
+            console.log('Creating task element for:', task); // Debug
+            
+            const li = document.createElement('li');
+            li.className = `task-item ${task.completed ? 'completed opacity-80' : ''} rounded-lg border border-gray-200 bg-white p-3 flex items-center gap-3 hover:bg-gray-50`;
+            li.setAttribute('draggable', 'true');
+            li.setAttribute('data-task-id', task.id);
+            
+            const priorityClass = `priority-${task.priority}`;
+            const typeIcon = task.type === 'todo' ? '✓' : '📝';
+            const deadlineText = task.deadline ? new Date(task.deadline).toLocaleDateString('sv-SE') : '';
+            const assigneeText = task.assignee ? task.assignee : '';
+            
+            // Check if deadline is overdue
+            const isOverdue = task.deadline && new Date(task.deadline) < new Date() && !task.completed;
+            
+            // Build metadata array
+            const metaItems = [];
+            
+            if (task.priority && task.priority !== 'medium') {
+                metaItems.push(`<span class="task-badge ${priorityClass}">${task.priority}</span>`);
+            }
+            
+            if (assigneeText) {
+                metaItems.push(`<span>👤 ${assigneeText}</span>`);
+            }
+            
+            if (deadlineText) {
+                metaItems.push(`<span class="task-badge ${isOverdue ? 'priority-high' : ''}">${deadlineText}</span>`);
+            }
+            
+            if (task.agile && task.agile !== 'later') {
+                const agileColors = {
+                    'now': 'priority-high',
+                    'next': 'priority-medium'
+                };
+                metaItems.push(`<span class="task-badge ${agileColors[task.agile] || ''}">${task.agile}</span>`);
+            }
+            
+            if (task.estimated_hours) {
+                metaItems.push(`<span>⏱️ ${task.estimated_hours}h</span>`);
+            }
+            
+            if (task.notes && task.notes.length > 0) {
+                metaItems.push(`<span>💬 ${task.notes.length}</span>`);
+            }
+            
+            console.log('Task ID for onclick:', task.id); // Debug
+            
+            li.innerHTML = `
+                <span class="drag-handle text-gray-400 cursor-grab select-none">⋮⋮</span>
+                ${task.type === 'todo' ? 
+                    `<div class="task-checkbox ${task.completed ? 'checked bg-green-600 text-white border-green-600' : 'bg-white'} w-5 h-5 rounded border border-gray-300 flex items-center justify-center" onclick="event.stopPropagation(); toggleTaskComplete('${task.id}')">${task.completed ? '✓' : ''}</div>` : 
+                    '<div class="w-5"></div>'
+                }
+                <div class="task-content flex-1 min-w-0" onclick="editTask('${task.id}')">
+                    <div class="task-title ${task.completed ? 'line-through text-gray-400' : 'text-gray-900'} font-medium truncate">${task.title}</div>
+                    ${metaItems.length > 0 ? 
+                        `<div class="task-meta mt-1 text-xs text-gray-500 flex gap-2 flex-wrap">${metaItems.join(' ')}</div>` : ''
+                    }
+                </div>
+                <div class="task-actions flex items-center gap-2">
+                    <button class="task-action-btn text-gray-500 hover:text-red-600" onclick="event.stopPropagation(); deleteTask('${task.id}')" title="Ta bort">🗑️</button>
+                </div>
+            `;
+            
+            return li;
+        }
+        
+        function renderCalendarView() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const overdueTasks = [];
+            const todayTasks = [];
+            const upcomingTasks = [];
+            const noDeadlineTasks = [];
+            
+            let filteredTasks;
+            
+            if (activeFilter) {
+                // Apply custom filter
+                filteredTasks = tasks.filter(task => matchesFilter(task, activeFilter));
+            } else {
+                // Apply project filter
+                filteredTasks = currentProject === 'all' 
+                    ? tasks 
+                    : tasks.filter(task => task.project === currentProject);
+            }
+            
+            filteredTasks.forEach(task => {
+                if (!task.deadline) {
+                    noDeadlineTasks.push(task);
+                } else {
+                    const taskDate = new Date(task.deadline);
+                    taskDate.setHours(0, 0, 0, 0);
+                    
+                    if (taskDate < today && !task.completed) {
+                        overdueTasks.push(task);
+                    } else if (taskDate.getTime() === today.getTime()) {
+                        todayTasks.push(task);
+                    } else if (taskDate > today) {
+                        upcomingTasks.push(task);
+                    } else {
+                        noDeadlineTasks.push(task);
+                    }
+                }
+            });
+            
+            renderCalendarSection('overdue-tasks', overdueTasks);
+            renderCalendarSection('today-tasks', todayTasks);
+            renderCalendarSection('upcoming-tasks', upcomingTasks);
+            renderCalendarSection('no-deadline-tasks', noDeadlineTasks);
+            
+            // Update counts
+            document.getElementById('overdue-count').textContent = overdueTasks.length || '';
+            document.getElementById('today-count').textContent = todayTasks.length || '';
+            document.getElementById('upcoming-count').textContent = upcomingTasks.length || '';
+            document.getElementById('no-deadline-count').textContent = noDeadlineTasks.length || '';
+        }
+        
+        function renderCalendarSection(containerId, tasks) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            tasks
+                .sort((a, b) => new Date(a.deadline || '9999-12-31') - new Date(b.deadline || '9999-12-31'))
+                .forEach(task => {
+                    const taskEl = createTaskElement(task);
+                    container.appendChild(taskEl);
+                });
+        }
+        
+        function renderAssigneesView() {
+            const container = document.getElementById('assignees-content');
+            container.innerHTML = '';
+            
+            // Get all unique assignees with open tasks
+            const assigneeGroups = {};
+            
+            let filteredTasks;
+            
+            if (activeFilter) {
+                // Apply custom filter and only show non-completed
+                filteredTasks = tasks.filter(task => matchesFilter(task, activeFilter) && !task.completed);
+            } else {
+                // Apply project filter and only show non-completed
+                const projectTasks = currentProject === 'all' 
+                    ? tasks 
+                    : tasks.filter(task => task.project === currentProject);
+                filteredTasks = projectTasks.filter(t => !t.completed);
+            }
+            
+            filteredTasks.forEach(task => {
+                const assignee = task.assignee || 'Ingen ansvarig';
+                if (!assigneeGroups[assignee]) {
+                    assigneeGroups[assignee] = [];
+                }
+                assigneeGroups[assignee].push(task);
+            });
+            
+            // Sort each group by deadline
+            Object.keys(assigneeGroups).forEach(assignee => {
+                assigneeGroups[assignee].sort((a, b) => {
+                    const aDate = a.deadline ? new Date(a.deadline) : new Date('9999-12-31');
+                    const bDate = b.deadline ? new Date(b.deadline) : new Date('9999-12-31');
+                    return aDate - bDate;
+                });
+            });
+            
+            // Render groups
+            Object.keys(assigneeGroups)
+                .sort()
+                .forEach(assignee => {
+                    const group = assigneeGroups[assignee];
+                    
+                    const section = document.createElement('div');
+                    section.className = 'calendar-section';
+                    section.innerHTML = `
+                        <h3>👤 ${assignee} <span class="task-count">${group.length}</span></h3>
+                        <ul class="task-list"></ul>
+                    `;
+                    
+                    const taskList = section.querySelector('.task-list');
+                    group.forEach(task => {
+                        const taskEl = createTaskElement(task);
+                        taskList.appendChild(taskEl);
+                    });
+                    
+                    container.appendChild(section);
+                });
+                
+            if (Object.keys(assigneeGroups).length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #999; padding: 40px;">Inga öppna uppgifter att visa</div>';
+            }
+        }
+        
+        // Sidebar management
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const app = document.getElementById('app-view');
+            if (app) app.classList.toggle('collapsed');
+
+            // Update aria-expanded for accessibility
+            try {
+                const btn = sidebar.querySelector('.hamburger-btn');
+                if (btn) {
+                    const expanded = btn.getAttribute('aria-expanded') === 'true';
+                    btn.setAttribute('aria-expanded', String(!expanded));
+                }
+            } catch (_) { /* noop */ }
+        }
+        
+        // Import/Export functions
+        function exportData() {
+            const data = {
+                tasks: tasks,
+                projects: projects,
+                notifications: notifications,
+                timestamp: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `agoodapp-backup-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+        }
+        
+        async function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+                
+                if (data.tasks) tasks = data.tasks;
+                if (data.projects) projects = data.projects;
+                if (data.notifications) notifications = data.notifications;
+                
+                await saveTasks();
+                await saveNotifications();
+                
+                renderTasks();
+                updateProjectCounts();
+                updateInboxCount();
+                
+                alert('Data importerad framgångsrikt!');
+            } catch (error) {
+                console.error('Import error:', error);
+                alert('Fel vid import av data.');
+            }
+            
+            event.target.value = '';
+        }
+        
+        // Merge remote tasks into local without deleting local-only tasks
+        function mergeTasksById(localList, remoteList) {
+            const map = new Map();
+            // Normalize and seed with local tasks
+            for (const t of localList.map(migrateTaskFormat)) {
+                if (!t.id) continue;
+                map.set(String(t.id), t);
+            }
+            // Overlay remote tasks (remote wins on conflicts)
+            for (const rt of remoteList.map(migrateTaskFormat)) {
+                if (!rt.id) continue;
+                map.set(String(rt.id), rt);
+            }
+            // Return sorted by created_at asc for stable UI
+            return Array.from(map.values()).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        }
+
+        function getLocalTasksFromStorage() {
+            try {
+                const saved = localStorage.getItem('agoodapp_tasks');
+                const parsed = saved ? JSON.parse(saved) : [];
+                return Array.isArray(parsed) ? parsed.map(migrateTaskFormat) : [];
+            } catch (_) {
+                return [];
+            }
+        }
+
+        async function syncFromSupabase() {
+            // Pre-flight checks and auto-recovery
+            try {
+                if (!supabaseClient) {
+                    alert('Supabase-klienten är inte initialiserad ännu. Ladda om sidan och försök igen.');
+                    return;
+                }
+                if (!isOnline) {
+                    alert('Du är offline just nu. Anslut till internet och försök igen.');
+                    return;
+                }
+                if (REQUIRE_AUTH) {
+                    const { data } = await supabaseClient.auth.getSession();
+                    if (!data?.session) {
+                        showLogin();
+                        alert('Logga in för att synka från Supabase.');
+                        return;
+                    }
+                }
+                if (!useSupabase) {
+                    // Try to establish a working connection before giving up
+                    await testSupabaseConnection();
+                    if (!useSupabase) {
+                        alert('Supabase är inte tillgängligt eller behörighet saknas. Kontrollera inloggning och åtkomst i Supabase.');
+                        return;
+                    }
+                }
+
+                let query = supabaseClient
+                    .from('tasks')
+                    .select('*')
+                    .order('created_at', { ascending: true });
+                const uid = await getSessionUserId();
+                if (supportsUserId && uid) query = query.eq('user_id', uid);
+                const { data, error } = await query;
+                
+                if (error) throw error;
+
+                const remote = Array.isArray(data) ? data : [];
+                if (remote.length === 0) {
+                    // Do not wipe local if remote is empty
+                    alert('Inga uppgifter hittades i Supabase. Dina lokala uppgifter lämnas oförändrade.');
+                    return;
+                }
+
+                // Build a safe local baseline: union of in-memory tasks and localStorage tasks
+                const localFromStorage = getLocalTasksFromStorage();
+                const localUnionMap = new Map();
+                for (const t of (Array.isArray(tasks) ? tasks : []).map(migrateTaskFormat)) {
+                    if (t?.id) localUnionMap.set(String(t.id), t);
+                }
+                for (const t of localFromStorage) {
+                    if (t?.id && !localUnionMap.has(String(t.id))) {
+                        localUnionMap.set(String(t.id), t);
+                    }
+                }
+                const localBaseline = Array.from(localUnionMap.values());
+
+                const beforeCount = localBaseline.length;
+                const merged = mergeTasksById(localBaseline, remote);
+                tasks = merged;
+                await saveTasks();
+                renderTasks();
+                updateProjectCounts();
+                updateInboxCount();
+
+                alert(`Synkat! Hämtade ${remote.length} från molnet. Totalt lokalt nu: ${tasks.length}.`);
+            } catch (error) {
+                console.error('Sync error:', error);
+                const status = error?.status || error?.code;
+                if (status === 401 || status === 403) {
+                    showLogin();
+                    alert('Behörighet nekad. Logga in igen för att synka.');
+                    return;
+                }
+                if (String(error?.message || '').includes('Failed to fetch') || !isOnline) {
+                    alert('Kan inte nå Supabase just nu. Kontrollera din internetanslutning och försök igen.');
+                    return;
+                }
+                alert(`Fel vid synkronisering från Supabase: ${error?.message || error}`);
+            }
+        }
+        
+        async function clearAllData() {
+            if (!confirm('Är du säker på att du vill rensa ALL data? Detta går inte att ångra.')) return;
+            
+            tasks = [];
+            projects = ['all', 'work', 'personal'];
+            notifications = [];
+            currentProject = 'all';
+            
+            localStorage.removeItem('agoodapp_tasks');
+            localStorage.removeItem('agoodapp_notifications');
+            
+            if (useSupabase) {
+                try {
+                    await supabaseClient
+                        .from('tasks')
+                        .delete()
+                        .neq('id', 'never-match');
+                } catch (error) {
+                    console.error('Error clearing Supabase:', error);
+                }
+            }
+            
+            renderTasks();
+            updateProjectCounts();
+            updateInboxCount();
+            
+            alert('All data har rensats.');
+        }
+        
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing app...'); // Debug
+            
+            if (!REQUIRE_AUTH) {
+                loadTasks();
+            }
+            loadSavedFilters();
+            // Wire logout button
+            // Logout lives in the user dropdown footer
+
+            // Init user dropdown
+            (async function initUserDropdown(){
+                const menuBtn = document.getElementById('user-menu-button');
+                const menuItems = document.getElementById('user-menu-items');
+                const logoutBtn = document.getElementById('logout-dropdown-btn');
+
+                if (menuBtn && !menuBtn._wired) {
+                    menuBtn._wired = true;
+                    menuBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const isHidden = menuItems?.classList.contains('hidden');
+                        if (menuItems) menuItems.classList.toggle('hidden', !isHidden);
+                        menuBtn.setAttribute('aria-expanded', String(!!isHidden));
+                    });
+                }
+
+                document.addEventListener('click', () => {
+                    if (menuItems && !menuItems.classList.contains('hidden')) {
+                        menuItems.classList.add('hidden');
+                        menuBtn?.setAttribute('aria-expanded', 'false');
+                    }
+                });
+
+                if (logoutBtn && !logoutBtn._wired) {
+                    logoutBtn._wired = true;
+                    logoutBtn.addEventListener('click', async () => {
+                        await logoutUser();
+                        if (menuItems) menuItems.classList.add('hidden');
+                        menuBtn?.setAttribute('aria-expanded', 'false');
+                    });
+                }
+
+                try {
+                    const { data } = await supabaseClient.auth.getSession();
+                    setUserDropdown(data?.session || null);
+                } catch (_) {}
+            })();
+            
+            // Add event listener for new filter button
+            const newFilterBtn = document.getElementById('new-filter-btn');
+            console.log('New filter button:', newFilterBtn); // Debug
+            
+            if (newFilterBtn) {
+                newFilterBtn.addEventListener('click', function() {
+                    console.log('New filter button clicked!'); // Debug
+                    showFilterEditor();
+                });
+                console.log('Event listener added to new filter button'); // Debug
+            } else {
+                console.error('New filter button not found!');
+            }
+            
+            // Add click handlers to all project items
+            console.log('Adding project click handlers...'); // Debug
+            document.querySelectorAll('.project-item').forEach(item => {
+                const project = item.getAttribute('data-project');
+                console.log('Setting up project item:', project); // Debug
+                
+                if (project === 'inbox') {
+                    item.addEventListener('click', showInbox);
+                } else if (project === 'settings') {
+                    item.addEventListener('click', showSettings);
+                } else if (project) {
+                    item.addEventListener('click', function() {
+                        console.log('Project clicked:', project); // Debug
+                        selectProject(project);
+                    });
+                }
+            });
+            console.log('Project click handlers added'); // Debug
+            
+            // Add escape key handler for panels
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    hideTaskForm();
+                    hideRightPanel();
+                    hideFilterEditor();
+                }
+            });
+            
+            console.log('App initialization completed'); // Debug
+
+            // Apply initial active styles
+            applyProjectActiveStyles();
+            applyFilterActiveStyles();
+            applyTabActiveStyles();
+        });
+
+        // Theme toggle handler
+        (function initThemeToggle(){
+            const btn = document.getElementById('theme-toggle');
+            if (!btn) return;
+            btn.addEventListener('click', () => {
+                const root = document.documentElement;
+                const isDark = root.classList.toggle('dark');
+                try {
+                    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                } catch (_) {}
+            });
+        })();
+        
+        // Filter management functions
+        async function loadSavedFilters() {
+            try {
+                const saved = localStorage.getItem('agoodapp_filters');
+                savedFilters = saved ? JSON.parse(saved) : [];
+                renderFilterList();
+            } catch (error) {
+                console.error('Error loading filters:', error);
+                savedFilters = [];
+            }
+        }
+        
+        async function saveSavedFilters() {
+            try {
+                localStorage.setItem('agoodapp_filters', JSON.stringify(savedFilters));
+            } catch (error) {
+                console.error('Error saving filters:', error);
+            }
+        }
+        
+        function showFilterEditor(filterId = null) {
+            console.log('showFilterEditor called with:', filterId); // Debug
+            
+            // Create modal if it doesn't exist
+            let modal = document.getElementById('filter-modal');
+            if (!modal) {
+                console.log('Modal not found, creating it...'); // Debug
+                modal = createFilterModal();
+                document.body.appendChild(modal);
+            }
+            
+            console.log('Modal element:', modal); // Debug
+            
+            const title = document.getElementById('filter-modal-title');
+            const deleteBtn = document.getElementById('delete-filter-btn');
+            
+            if (!modal) {
+                console.error('Filter modal still not found after creation!');
+                return;
+            }
+            
+            // Clear form
+            clearFilterForm();
+            
+            if (filterId) {
+                // Edit existing filter
+                const filter = savedFilters.find(f => f.id === filterId);
+                if (filter) {
+                    title.textContent = 'Redigera filter';
+                    deleteBtn.style.display = 'inline-block';
+                    populateFilterForm(filter);
+                    window.editingFilterId = filterId;
+                }
+            } else {
+                // New filter
+                title.textContent = 'Nytt filter';
+                deleteBtn.style.display = 'none';
+                window.editingFilterId = null;
+            }
+            
+            console.log('Adding show class to modal'); // Debug
+            modal.classList.add('show');
+            console.log('Modal classes now:', modal.className); // Debug
+        }
+        
+        function createFilterModal() {
+            const modal = document.createElement('div');
+            modal.id = 'filter-modal';
+            modal.className = 'filter-modal';
+            modal.innerHTML = `
+                <div class="filter-modal-content">
+                    <div class="filter-modal-header">
+                        <h3 id="filter-modal-title">Nytt filter</h3>
+                        <button class="close-panel-btn" onclick="hideFilterEditor()">✕</button>
+                    </div>
+                    
+                    <div class="filter-modal-body">
+                        <div class="form-group">
+                            <label>Filternamn</label>
+                            <input type="text" id="filter-name" placeholder="t.ex. Mina brådskande uppgifter">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Typ</label>
+                            <select id="filter-type" multiple>
+                                <option value="todo">Todo</option>
+                                <option value="note">Anteckning</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Ansvarig</label>
+                                <select id="filter-assignee" multiple>
+                                    <option value="mats">Mats</option>
+                                    <option value="anna">Anna</option>
+                                    <option value="erik">Erik</option>
+                                    <option value="sara">Sara</option>
+                                    <option value="johan">Johan</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Prioritet</label>
+                                <select id="filter-priority" multiple>
+                                    <option value="low">Låg</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">Hög</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Status</label>
+                                <select id="filter-status" multiple>
+                                    <option value="pending">Pågående</option>
+                                    <option value="completed">Avklarad</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Agilt</label>
+                                <select id="filter-agile" multiple>
+                                    <option value="now">Now</option>
+                                    <option value="next">Next</option>
+                                    <option value="later">Later</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Deadline från</label>
+                                <input type="date" id="filter-deadline-from">
+                            </div>
+                            <div class="form-group">
+                                <label>Deadline till</label>
+                                <input type="date" id="filter-deadline-to">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Skapad från</label>
+                                <input type="date" id="filter-created-from">
+                            </div>
+                            <div class="form-group">
+                                <label>Skapad till</label>
+                                <input type="date" id="filter-created-to">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Uppsk. tid från (h)</label>
+                                <input type="number" id="filter-estimated-from" step="0.25" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Uppsk. tid till (h)</label>
+                                <input type="number" id="filter-estimated-to" step="0.25" min="0">
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button class="btn btn-secondary" onclick="hideFilterEditor()">Avbryt</button>
+                            <button class="btn btn-danger" onclick="deleteFilter()" id="delete-filter-btn" style="display: none;">Radera filter</button>
+                            <button class="btn btn-primary" onclick="saveFilter()" id="save-filter-btn">Spara filter</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return modal;
+        }
+        
+        function hideFilterEditor() {
+            console.log('hideFilterEditor called'); // Debug
+            const modal = document.getElementById('filter-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                console.log('Removed show class from modal'); // Debug
+            }
+            window.editingFilterId = null;
+        }
+        
+        function clearFilterForm() {
+            console.log('clearFilterForm called'); // Debug
+            
+            try {
+                document.getElementById('filter-name').value = '';
+                
+                // Clear all multi-selects
+                const selects = ['filter-type', 'filter-assignee', 'filter-priority', 'filter-status', 'filter-agile'];
+                selects.forEach(id => {
+                    const select = document.getElementById(id);
+                    if (select) {
+                        Array.from(select.options).forEach(option => option.selected = false);
+                    } else {
+                        console.log('Select not found:', id);
+                    }
+                });
+                
+                // Clear date inputs
+                const dateFields = ['filter-deadline-from', 'filter-deadline-to', 'filter-created-from', 'filter-created-to', 'filter-estimated-from', 'filter-estimated-to'];
+                dateFields.forEach(id => {
+                    const field = document.getElementById(id);
+                    if (field) {
+                        field.value = '';
+                    } else {
+                        console.log('Date field not found:', id);
+                    }
+                });
+                
+                console.log('clearFilterForm completed successfully'); // Debug
+            } catch (error) {
+                console.error('Error in clearFilterForm:', error);
+            }
+        }
+        
+        function populateFilterForm(filter) {
+            document.getElementById('filter-name').value = filter.name;
+            
+            // Populate multi-selects
+            if (filter.criteria.type) {
+                const typeSelect = document.getElementById('filter-type');
+                filter.criteria.type.forEach(value => {
+                    const option = typeSelect.querySelector(`option[value="${value}"]`);
+                    if (option) option.selected = true;
+                });
+            }
+            
+            if (filter.criteria.assignee) {
+                const assigneeSelect = document.getElementById('filter-assignee');
+                filter.criteria.assignee.forEach(value => {
+                    const option = assigneeSelect.querySelector(`option[value="${value}"]`);
+                    if (option) option.selected = true;
+                });
+            }
+            
+            if (filter.criteria.priority) {
+                const prioritySelect = document.getElementById('filter-priority');
+                filter.criteria.priority.forEach(value => {
+                    const option = prioritySelect.querySelector(`option[value="${value}"]`);
+                    if (option) option.selected = true;
+                });
+            }
+            
+            if (filter.criteria.status) {
+                const statusSelect = document.getElementById('filter-status');
+                filter.criteria.status.forEach(value => {
+                    const option = statusSelect.querySelector(`option[value="${value}"]`);
+                    if (option) option.selected = true;
+                });
+            }
+            
+            if (filter.criteria.agile) {
+                const agileSelect = document.getElementById('filter-agile');
+                filter.criteria.agile.forEach(value => {
+                    const option = agileSelect.querySelector(`option[value="${value}"]`);
+                    if (option) option.selected = true;
+                });
+            }
+            
+            // Populate date inputs
+            if (filter.criteria.deadlineFrom) document.getElementById('filter-deadline-from').value = filter.criteria.deadlineFrom;
+            if (filter.criteria.deadlineTo) document.getElementById('filter-deadline-to').value = filter.criteria.deadlineTo;
+            if (filter.criteria.createdFrom) document.getElementById('filter-created-from').value = filter.criteria.createdFrom;
+            if (filter.criteria.createdTo) document.getElementById('filter-created-to').value = filter.criteria.createdTo;
+            if (filter.criteria.estimatedFrom) document.getElementById('filter-estimated-from').value = filter.criteria.estimatedFrom;
+            if (filter.criteria.estimatedTo) document.getElementById('filter-estimated-to').value = filter.criteria.estimatedTo;
+        }
+        
+        function getSelectedValues(selectId) {
+            const select = document.getElementById(selectId);
+            return Array.from(select.selectedOptions).map(option => option.value);
+        }
+        
+        async function saveFilter() {
+            const name = document.getElementById('filter-name').value.trim();
+            if (!name) {
+                alert('Ange ett namn för filtret');
+                return;
+            }
+            
+            const criteria = {
+                type: getSelectedValues('filter-type'),
+                assignee: getSelectedValues('filter-assignee'),
+                priority: getSelectedValues('filter-priority'),
+                status: getSelectedValues('filter-status'),
+                agile: getSelectedValues('filter-agile'),
+                deadlineFrom: document.getElementById('filter-deadline-from').value || null,
+                deadlineTo: document.getElementById('filter-deadline-to').value || null,
+                createdFrom: document.getElementById('filter-created-from').value || null,
+                createdTo: document.getElementById('filter-created-to').value || null,
+                estimatedFrom: parseFloat(document.getElementById('filter-estimated-from').value) || null,
+                estimatedTo: parseFloat(document.getElementById('filter-estimated-to').value) || null
+            };
+            
+            const filter = {
+                id: window.editingFilterId || generateId(),
+                name: name,
+                criteria: criteria,
+                created_at: window.editingFilterId ? 
+                    savedFilters.find(f => f.id === window.editingFilterId).created_at : 
+                    new Date().toISOString()
+            };
+            
+            if (window.editingFilterId) {
+                // Update existing filter
+                const index = savedFilters.findIndex(f => f.id === window.editingFilterId);
+                if (index !== -1) {
+                    savedFilters[index] = filter;
+                }
+            } else {
+                // Add new filter
+                savedFilters.push(filter);
+            }
+            
+            await saveSavedFilters();
+            renderFilterList();
+            hideFilterEditor();
+        }
+        
+        async function deleteFilter() {
+            if (!window.editingFilterId) return;
+            
+            if (!confirm('Är du säker på att du vill radera detta filter?')) return;
+            
+            savedFilters = savedFilters.filter(f => f.id !== window.editingFilterId);
+            
+            // Clear active filter if it was the deleted one
+            if (activeFilter && activeFilter.id === window.editingFilterId) {
+                activeFilter = null;
+            }
+            
+            await saveSavedFilters();
+            renderFilterList();
+            renderTasks();
+            hideFilterEditor();
+        }
+        
+        function renderFilterList() {
+            const filterList = document.getElementById('filter-list');
+            filterList.innerHTML = '';
+            
+            // Sort filters alphabetically
+            const sortedFilters = [...savedFilters].sort((a, b) => a.name.localeCompare(b.name));
+            
+            sortedFilters.forEach(filter => {
+                const filterEl = document.createElement('div');
+                filterEl.className = `filter-item ${activeFilter && activeFilter.id === filter.id ? 'active' : ''} flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50 cursor-pointer`;
+                filterEl.innerHTML = `
+                    <span class="icon">🔍</span>
+                    <span class="name">${filter.name}</span>
+                    <div class="actions">
+                        <button class="filter-action-btn" onclick="editFilter('${filter.id}')" title="Redigera">✏️</button>
+                    </div>
+                `;
+                
+                filterEl.addEventListener('click', function(e) {
+                    if (!e.target.classList.contains('filter-action-btn')) {
+                        applyFilter(filter);
+                    }
+                });
+                
+                filterList.appendChild(filterEl);
+            });
+
+            applyFilterActiveStyles();
+        }
+        
+        function editFilter(filterId) {
+            showFilterEditor(filterId);
+        }
+        
+        function applyFilter(filter) {
+            activeFilter = filter;
+            
+            // Update active state in UI
+            document.querySelectorAll('.filter-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+            
+            // Update project selection to show we're filtering
+            document.querySelectorAll('.project-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Update main title
+            document.getElementById('main-title').textContent = `Filter: ${filter.name}`;
+            
+            showMainView();
+            renderTasks();
+
+            applyFilterActiveStyles();
+        }
+        
+    function clearFilter() {
+            activeFilter = null;
+            
+            // Clear filter selection
+            document.querySelectorAll('.filter-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            applyFilterActiveStyles();
+        }
+
+        function applyTabActiveStyles() {
+            document.querySelectorAll('.tab').forEach(el => {
+                // Ensure consistent underline height
+                el.classList.add('border-b-2');
+                if (el.classList.contains('active')) {
+                    el.classList.add('bg-gray-100', 'border-blue-600', 'text-blue-700', 'font-medium');
+                    el.classList.remove('border-transparent', 'text-gray-700');
+                } else {
+                    el.classList.add('border-transparent', 'text-gray-700');
+                    el.classList.remove('bg-gray-100', 'border-blue-600', 'text-blue-700', 'font-medium');
+                }
+            });
+        }
+
+        // Tailwind styling helpers for active items
+        function applyProjectActiveStyles() {
+            document.querySelectorAll('.project-item').forEach(el => {
+                if (el.classList.contains('active')) {
+                    el.classList.add('bg-gray-100', 'border-l-2', 'border-blue-600');
+                } else {
+                    el.classList.remove('bg-gray-100', 'border-l-2', 'border-blue-600');
+                }
+            });
+        }
+
+        function applyFilterActiveStyles() {
+            document.querySelectorAll('.filter-item').forEach(el => {
+                if (el.classList.contains('active')) {
+                    el.classList.add('bg-gray-100', 'border-l-2', 'border-blue-600');
+                } else {
+                    el.classList.remove('bg-gray-100', 'border-l-2', 'border-blue-600');
+                }
+            });
+        }
+        
+        function matchesFilter(task, filter) {
+            const criteria = filter.criteria;
+            
+            // Type filter
+            if (criteria.type.length > 0 && !criteria.type.includes(task.type)) {
+                return false;
+            }
+            
+            // Assignee filter
+            if (criteria.assignee.length > 0 && !criteria.assignee.includes(task.assignee)) {
+                return false;
+            }
+            
+            // Priority filter
+            if (criteria.priority.length > 0 && !criteria.priority.includes(task.priority)) {
+                return false;
+            }
+            
+            // Status filter
+            if (criteria.status.length > 0) {
+                const taskStatus = task.completed ? 'completed' : 'pending';
+                if (!criteria.status.includes(taskStatus)) {
+                    return false;
+                }
+            }
+            
+            // Agile filter
+            if (criteria.agile.length > 0 && !criteria.agile.includes(task.agile)) {
+                return false;
+            }
+            
+            // Deadline filters
+            if (criteria.deadlineFrom || criteria.deadlineTo) {
+                if (!task.deadline) return false;
+                
+                const taskDeadline = new Date(task.deadline);
+                
+                if (criteria.deadlineFrom) {
+                    const fromDate = new Date(criteria.deadlineFrom);
+                    if (taskDeadline < fromDate) return false;
+                }
+                
+                if (criteria.deadlineTo) {
+                    const toDate = new Date(criteria.deadlineTo);
+                    if (taskDeadline > toDate) return false;
+                }
+            }
+            
+            // Created date filters
+            if (criteria.createdFrom || criteria.createdTo) {
+                const taskCreated = new Date(task.created_at);
+                
+                if (criteria.createdFrom) {
+                    const fromDate = new Date(criteria.createdFrom);
+                    if (taskCreated < fromDate) return false;
+                }
+                
+                if (criteria.createdTo) {
+                    const toDate = new Date(criteria.createdTo);
+                    toDate.setHours(23, 59, 59, 999); // End of day
+                    if (taskCreated > toDate) return false;
+                }
+            }
+            
+            // Estimated time filters
+            if (criteria.estimatedFrom !== null || criteria.estimatedTo !== null) {
+                if (task.estimated_hours === null || task.estimated_hours === undefined) return false;
+                
+                if (criteria.estimatedFrom !== null && task.estimated_hours < criteria.estimatedFrom) {
+                    return false;
+                }
+                
+                if (criteria.estimatedTo !== null && task.estimated_hours > criteria.estimatedTo) {
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+    </script>
+</body>
+</html>
