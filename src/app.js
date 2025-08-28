@@ -144,7 +144,7 @@ function updateStatusIndicator() {
     indicator.textContent = '🌐 Supabase Connected';
     indicator.className = 'status-indicator';
   } else {
-    indicator.textContent = '💾 Local Mode';
+    indicator.textContent = '◦ Local Mode';
     indicator.className = 'status-indicator local';
   }
   setTimeout(() => {

@@ -119,13 +119,13 @@
         }
         .auth-loading.show { display: flex; }
     </style>
-  <script type="module" crossorigin src="/assets/index-CHyDx80y.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-Csr3zVGN.css">
+  <script type="module" crossorigin src="/assets/index-Cv_VAmO_.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-COtjPMOH.css">
 </head>
 <body class="min-h-screen bg-gray-50 text-gray-900 antialiased roboto-agoodapp">
     <!-- Loading during auth detection -->
     <div id="auth-loading" class="auth-loading show">⏳ Laddar…</div>
-    <div id="login-view" class="max-w-md mx-auto mt-16 p-6 border border-gray-200 rounded-lg bg-white shadow-sm" style="display:none; max-width: 420px; margin: 60px auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 8px;">
+    <div id="login-view" class="max-w-md mx-auto mt-16 p-6 border border-gray-200 rounded-lg bg-white shadow-sm" style="display:block; max-width: 420px; margin: 60px auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 8px;">
         <h2 style="margin-bottom: 12px;">Logga in</h2>
         <p style="margin-bottom: 12px; color:#666;">Du måste logga in för att använda appen.</p>
         <div style="display:flex; gap:8px; align-items:center; margin-bottom: 10px;">
@@ -133,6 +133,7 @@
             <button id="login-magic-btn" class="btn btn-primary bg-blue-600 hover:bg-blue-700 text-white">Skicka länk</button>
         </div>
         <button id="login-github-btn" class="btn btn-secondary bg-gray-700 hover:bg-gray-800 text-white" style="width:100%;">Logga in med GitHub</button>
+        <button id="login-google-btn" class="btn btn-secondary bg-blue-600 hover:bg-blue-700 text-white mt-3" style="width:100%;">Logga in med Google</button>
     </div>
 
         <!-- Top bar -->
@@ -143,12 +144,14 @@
                     <span class="text-xl font-semibold">AGoodApp</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <!-- Primary action lives in main content header; removed duplicate here -->
+                    <button class="add-task-btn pressable" onclick="showTaskForm()">
+                        + Ny
+                    </button>
                 </div>
             </div>
         </header>
 
-    <div class="app-container h-dvh max-w-[1400px] mx-auto p-4 grid gap-6 grid-cols-1 md:grid-cols-[260px_minmax(420px,1fr)_0]" id="app-view" style="display:none">
+    <div class="app-container h-dvh max-w-[1400px] mx-auto p-4 grid gap-0 grid-cols-1 md:grid-cols-[260px_1fr_0]" id="app-view" style="display:none">
         <!-- Sidebar -->
     <div class="sidebar bg-gray-50 p-2 flex flex-col" id="sidebar">
             <div class="sidebar-header">
@@ -157,27 +160,27 @@
             
             <div class="project-list space-y-1.5">
                 <div class="project-item active flex items-center justify-between gap-2 px-3 py-2.5 rounded-md hover:bg-gray-50 cursor-pointer" data-project="all">
-                    <span class="flex items-center gap-2"><span class="icon">📋</span><span class="name">Alla uppgifter</span></span>
+                    <span class="flex items-center gap-2"><span class="icon">▪</span><span class="name">Alla uppgifter</span></span>
                     <span class="count text-xs inline-flex min-w-5 justify-center" id="count-all">0</span>
                 </div>
                 
                 <div class="project-item flex items-center justify-between gap-2 px-3 py-2.5 rounded-md hover:bg-gray-50 cursor-pointer" data-project="inbox">
-                    <span class="flex items-center gap-2"><span class="icon">🔔</span><span class="name">Inbox</span></span>
+                    <span class="flex items-center gap-2"><span class="icon">◉</span><span class="name">Inbox</span></span>
                     <span class="count text-xs inline-flex min-w-5 justify-center" id="count-inbox">0</span>
                 </div>
                 
                 <div class="project-item flex items-center justify-between gap-2 px-3 py-2.5 rounded-md hover:bg-gray-50 cursor-pointer" data-project="work">
-                    <span class="flex items-center gap-2"><span class="icon">💼</span><span class="name">Arbete</span></span>
+                    <span class="flex items-center gap-2"><span class="icon">◐</span><span class="name">Arbete</span></span>
                     <span class="count text-xs inline-flex min-w-5 justify-center" id="count-work">0</span>
                 </div>
                 
                 <div class="project-item flex items-center justify-between gap-2 px-3 py-2.5 rounded-md hover:bg-gray-50 cursor-pointer" data-project="personal">
-                    <span class="flex items-center gap-2"><span class="icon">🏠</span><span class="name">Personligt</span></span>
+                    <span class="flex items-center gap-2"><span class="icon">◯</span><span class="name">Personligt</span></span>
                     <span class="count text-xs inline-flex min-w-5 justify-center" id="count-personal">0</span>
                 </div>
                 
                 <div class="project-item flex items-center justify-between gap-2 px-3 py-2.5 rounded-md hover:bg-gray-50 cursor-pointer" data-project="settings">
-                    <span class="flex items-center gap-2"><span class="icon">⚙️</span><span class="name">Inställningar</span></span>
+                    <span class="flex items-center gap-2"><span class="icon">◦</span><span class="name">Inställningar</span></span>
                     <span class="count text-xs inline-flex min-w-5 justify-center"></span>
                 </div>
                 
@@ -200,10 +203,10 @@
             <!-- Tools: theme + status -->
             <div class="sidebar-tools mt-4">
                 <div id="sidebar-theme-toggle" class="project-item flex items-center justify-between gap-2 px-3 py-2.5 rounded-md hover:bg-gray-50 cursor-pointer" title="Växla tema">
-                    <span class="flex items-center gap-2"><span class="icon">🌓</span><span class="name">Ljust/mörkt</span></span>
+                    <span class="flex items-center gap-2"><span class="icon">◗</span><span class="name">Ljust/mörkt</span></span>
                 </div>
                 <div id="sidebar-status-row" class="project-item flex items-center justify-between gap-2 px-3 py-2.5 rounded-md">
-                    <span class="flex items-center gap-2"><span class="icon">💾</span><span class="name"><span id="status-indicator" data-sticky="true">Local Mode</span></span></span>
+                    <span class="flex items-center gap-2"><span class="icon">◦</span><span class="name"><span id="status-indicator" data-sticky="true">Local Mode</span></span></span>
                 </div>
             </div>
 
@@ -245,7 +248,7 @@
         </div>
 
         <!-- Main Content -->
-    <div class="main-content bg-white p-4">
+    <div class="main-content">
             <div class="main-header">
                 <h2 id="main-title" class="text-xl font-semibold">Alla uppgifter</h2>
             </div>
@@ -255,11 +258,10 @@
                 <div class="tabs flex items-center justify-between border-b border-gray-200 mb-4">
                     <!-- Tools: theme + status -->
                     <div class="tabs-left flex gap-1">
-                        <div class="tab active px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer" onclick="switchTab('outline')">📋 Outline</div>
-                        <div class="tab px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer" onclick="switchTab('calendar')">📅 Kalender</div>
-                        <div class="tab px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer" onclick="switchTab('assignees')">👤 Vem?</div>
+                        <div class="tab active px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer" onclick="switchTab('outline')">▪ Outline</div>
+                        <div class="tab px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer" onclick="switchTab('calendar')">◐ Kalender</div>
+                        <div class="tab px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer" onclick="switchTab('assignees')">◯ Vem?</div>
                     </div>
-                    <button class="add-task-btn btn btn-primary pressable hover-lift" onclick="showTaskForm()">+ Ny</button>
                 </div>
 
                 <div class="content-area">
@@ -278,7 +280,7 @@
                             <div class="form-group">
                                 <label>Typ</label>
                                 <div class="type-switch">
-                                    <span>📝 Anteckning</span>
+                                    <span>◦ Anteckning</span>
                                     <div class="switch active" onclick="toggleTaskType()" id="type-switch">
                                     </div>
                                     <span>✓ Todo</span>
@@ -352,22 +354,22 @@
                     <!-- Calendar View -->
                     <div id="calendar-view" style="display: none;">
                         <div class="calendar-section overdue">
-                            <h3>🔴 Försenade <span class="task-count" id="overdue-count">0</span></h3>
+                            <h3>◻ Försenade <span class="task-count" id="overdue-count">0</span></h3>
                             <ul class="task-list space-y-2" id="overdue-tasks"></ul>
                         </div>
                         
                         <div class="calendar-section today">
-                            <h3>🟡 Idag <span class="task-count" id="today-count">0</span></h3>
+                            <h3>◉ Idag <span class="task-count" id="today-count">0</span></h3>
                             <ul class="task-list space-y-2" id="today-tasks"></ul>
                         </div>
                         
                         <div class="calendar-section upcoming">
-                            <h3>🟢 Kommande <span class="task-count" id="upcoming-count">0</span></h3>
+                            <h3>◐ Kommande <span class="task-count" id="upcoming-count">0</span></h3>
                             <ul class="task-list space-y-2" id="upcoming-tasks"></ul>
                         </div>
                         
                         <div class="calendar-section">
-                            <h3>⚪ Ingen deadline <span class="task-count" id="no-deadline-count">0</span></h3>
+                            <h3>◯ Ingen deadline <span class="task-count" id="no-deadline-count">0</span></h3>
                             <ul class="task-list space-y-2" id="no-deadline-tasks"></ul>
                         </div>
                     </div>
@@ -384,7 +386,7 @@
             <!-- Inbox View -->
             <div id="inbox-view" style="display: none;">
                 <div class="tabs">
-                    <div class="tab active">🔔 Inbox</div>
+                    <div class="tab active">◉ Inbox</div>
                 </div>
                 
                 <div class="inbox-content">
@@ -402,15 +404,15 @@
             <!-- Settings View -->
             <div id="settings-view" style="display: none;">
                 <div class="tabs">
-                    <div class="tab active">⚙️ Inställningar</div>
+                    <div class="tab active">◦ Inställningar</div>
                 </div>
                 
                 <div class="settings-content">
                     <div class="settings-section">
                         <h3>Data & Backup</h3>
                         <div class="settings-actions">
-                            <button class="btn btn-secondary" onclick="exportData()">💾 Exportera data</button>
-                            <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">📁 Importera data</button>
+                            <button class="btn btn-secondary" onclick="exportData()">◦ Exportera data</button>
+                            <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">▫ Importera data</button>
                             <input type="file" id="import-file" accept=".json" style="display: none" onchange="importData(event)">
                         </div>
                     </div>
@@ -425,7 +427,7 @@
                     <div class="settings-section">
                         <h3>Farlig zon</h3>
                         <div class="settings-actions">
-                            <button class="btn btn-danger" onclick="clearAllData()">🗑️ Rensa all data</button>
+                            <button class="btn btn-danger" onclick="clearAllData()">◻ Rensa all data</button>
                         </div>
                     </div>
                 </div>
@@ -451,7 +453,7 @@
                         <div class="form-group">
                             <label>Typ</label>
                             <div class="type-switch">
-                                <span>📝 Anteckning</span>
+                                <span>◦ Anteckning</span>
                                 <div class="switch active" onclick="toggleEditTaskType()" id="edit-type-switch">
                                 </div>
                                 <span>✓ Todo</span>
@@ -612,7 +614,7 @@
             }
         }
 
-        // --- Auth wiring (magic link + GitHub) ---
+        // --- Auth wiring (magic link + GitHub + Google) ---
         function showLogin() {
             const login = document.getElementById('login-view');
             const app = document.getElementById('app-view');
@@ -742,6 +744,31 @@
                         }
                     });
                 }
+
+                // Google OAuth
+                const googleBtn = document.getElementById('login-google-btn');
+                if (googleBtn && !googleBtn._wired) {
+                    googleBtn._wired = true;
+                    googleBtn.addEventListener('click', async () => {
+                        try {
+                            const origin = window.location.origin || '';
+                            const isHttp = /^https?:/i.test(origin);
+                            const options = isHttp ? { redirectTo: origin } : {};
+                            await supabaseClient.auth.signInWithOAuth({ provider: 'google', options });
+                        } catch (e) {
+                            const msg = e?.message || String(e);
+                            if (/provider is not enabled|Unsupported provider/i.test(msg)) {
+                                alert('Google-inloggning är inte aktiverad i Supabase. Aktivera providern i Supabase → Authentication → Providers och konfigurera Client ID/Secret. I Google Console: sätt Authorized redirect URI till ' +
+                                      'https://tazwiywfzpmyqbmmkhpc.supabase.co/auth/v1/callback.\nLägg även till din app-URL (t.ex. ' + window.location.origin + ') under Redirect URLs i Supabase.');
+                            } else if (/redirect|not permitted|not allowed|invalid\s*redirect|URL must be absolute/i.test(msg)) {
+                                const origin = window.location.origin;
+                                alert('Ogiltig eller ej tillåten redirect URL.\n\nGör så här:\n1) I Supabase → Authentication → URL Configuration: sätt "Site URL" till din app-URL.\n2) I Supabase → Authentication → Providers → Google: se till att Authorization redirect URI är\n   https://tazwiywfzpmyqbmmkhpc.supabase.co/auth/v1/callback\n3) Lägg till följande under "Redirect URLs":\n   - ' + origin + '\n\nTips: Om du kör appen från filsystemet (file://) kan du starta dev-servern (t.ex. http://localhost:5173) och använda den URL:en.');
+                            } else {
+                                alert('Fel vid Google-inloggning: ' + msg);
+                            }
+                        }
+                    });
+                }
             } catch (_) {}
 
             // Session check and auth state subscription
@@ -852,7 +879,7 @@
                     indicator.textContent = '🔒 Sign in required';
                     indicator.className = 'status-indicator local';
                 } else {
-                indicator.textContent = '💾 Local Mode';
+                indicator.textContent = '◦ Local Mode';
                 indicator.className = 'status-indicator local';
                 }
             }
@@ -999,6 +1026,8 @@
                 // Migrate old task format to new format
                 tasks = tasks.map(task => migrateTaskFormat(task));
                 
+                console.log('🔍 After loading - Total tasks:', tasks.length, 'Current tab:', currentTab);
+                
                 // Load notifications
                 loadNotifications();
                 
@@ -1075,16 +1104,19 @@
                                 showToast('🛜 Offline — sparat lokalt');
                             } else if (error) throw error;
                             else if (Array.isArray(data) && data.length === 1) {
-                                showToast('✅ Sparat i Supabase');
+                                showToast('◦ Sparat i Supabase');
                             } else {
-                                showToast('⚠️ Kunde inte verifiera sparningen', 'error');
+                                showToast('◻ Kunde inte verifiera sparningen', 'error');
                             }
                         }
                     } catch (e) {
                         console.warn('Post-save verify failed:', e);
-                        showToast('⚠️ Verifiering misslyckades', 'error');
+                        showToast('◻ Verifiering misslyckades', 'error');
                     }
                 }
+                
+                // Always re-render tasks after saving to update all views
+                renderTasks();
             } catch (error) {
                 console.error('❌ Error saving tasks:', error);
                 // Data is still saved in localStorage
@@ -1689,8 +1721,8 @@
                     <div class="note-meta">
                         <span>${new Date(note.created_at).toLocaleDateString('sv-SE')} ${new Date(note.created_at).toLocaleTimeString('sv-SE', {hour: '2-digit', minute: '2-digit'})}</span>
                         <div class="note-actions">
-                            <button class="task-action-btn" onclick="editNote(${index})" title="Redigera">✏️</button>
-                            <button class="task-action-btn" onclick="deleteNote(${index})" title="Ta bort">🗑️</button>
+                            <button class="task-action-btn" onclick="editNote(${index})" title="Redigera">◦</button>
+                            <button class="task-action-btn" onclick="deleteNote(${index})" title="Ta bort">◻</button>
                         </div>
                     </div>
                 `;
@@ -2029,7 +2061,7 @@
             newProject.className = 'project-item';
             newProject.setAttribute('data-project', name);
             newProject.innerHTML = `
-                <span class="icon">📁</span>
+                <span class="icon">▫</span>
                 <span class="name">${name}</span>
                 <span class="count">0</span>
             `;
@@ -2068,6 +2100,7 @@
         
         // Tab management
         function switchTab(tabName) {
+            console.log('🔄 switchTab called with:', tabName);
             currentTab = tabName;
             
             // Update active tab
@@ -2080,19 +2113,30 @@
             
             // Show/hide views
             if (tabName === 'outline') {
+                console.log('-> Switching to outline view');
                 document.getElementById('outline-view').style.display = 'block';
                 document.getElementById('calendar-view').style.display = 'none';
                 document.getElementById('assignees-view').style.display = 'none';
             } else if (tabName === 'calendar') {
+                console.log('-> Switching to calendar view');
                 document.getElementById('outline-view').style.display = 'none';
                 document.getElementById('calendar-view').style.display = 'block';
                 document.getElementById('assignees-view').style.display = 'none';
-                if (window.renderCalendarFromApi) {
-                    window.renderCalendarFromApi();
-                } else {
-                    renderCalendarView();
+                console.log('-> Calling renderCalendarView...');
+                try {
+                    if (window.renderCalendarFromApi) {
+                        console.log('-> Using renderCalendarFromApi');
+                        window.renderCalendarFromApi();
+                    } else {
+                        console.log('-> Using renderCalendarView');
+                        renderCalendarView();
+                    }
+                    console.log('-> Calendar render completed');
+                } catch (error) {
+                    console.error('-> Error rendering calendar:', error);
                 }
             } else if (tabName === 'assignees') {
+                console.log('-> Switching to assignees view');
                 document.getElementById('outline-view').style.display = 'none';
                 document.getElementById('calendar-view').style.display = 'none';
                 document.getElementById('assignees-view').style.display = 'block';
@@ -2101,11 +2145,16 @@
         }
         
         function renderTasks() {
+            console.log('📊 renderTasks called - currentTab:', currentTab);
+            
             if (currentTab === 'outline') {
+                console.log('-> Rendering outline view');
                 renderOutlineView();
             } else if (currentTab === 'calendar') {
+                console.log('-> Rendering calendar view');
                 renderCalendarView();
             } else if (currentTab === 'assignees') {
+                console.log('-> Rendering assignees view');
                 renderAssigneesView();
             }
         }
@@ -2147,7 +2196,7 @@
             li.setAttribute('data-task-id', task.id);
             
             const priorityClass = `priority-${task.priority}`;
-            const typeIcon = task.type === 'todo' ? '✓' : '📝';
+            const typeIcon = task.type === 'todo' ? '◦' : '◦';
             const deadlineText = task.deadline ? new Date(task.deadline).toLocaleDateString('sv-SE') : '';
             const assigneeText = task.assignee ? task.assignee : '';
             
@@ -2208,67 +2257,101 @@
         }
         
         function renderCalendarView() {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            const overdueTasks = [];
-            const todayTasks = [];
-            const upcomingTasks = [];
-            const noDeadlineTasks = [];
-            
-            let filteredTasks;
-            
-            if (activeFilter) {
-                // Apply custom filter
-                filteredTasks = tasks.filter(task => matchesFilter(task, activeFilter));
-            } else {
-                // Apply project filter
-                filteredTasks = currentProject === 'all' 
-                    ? tasks 
-                    : tasks.filter(task => task.project === currentProject);
-            }
-            
-            filteredTasks.forEach(task => {
-                if (!task.deadline) {
-                    noDeadlineTasks.push(task);
+            try {
+                console.log('🗓️ Rendering calendar view...');
+                console.log('Total tasks:', tasks.length);
+                
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                const overdueTasks = [];
+                const todayTasks = [];
+                const upcomingTasks = [];
+                const noDeadlineTasks = [];
+                
+                let filteredTasks;
+                
+                if (activeFilter) {
+                    // Apply custom filter
+                    filteredTasks = tasks.filter(task => matchesFilter(task, activeFilter));
+                    console.log('Filtered tasks (custom filter):', filteredTasks.length);
                 } else {
-                    const taskDate = new Date(task.deadline);
-                    taskDate.setHours(0, 0, 0, 0);
-                    
-                    if (taskDate < today && !task.completed) {
-                        overdueTasks.push(task);
-                    } else if (taskDate.getTime() === today.getTime()) {
-                        todayTasks.push(task);
-                    } else if (taskDate > today) {
-                        upcomingTasks.push(task);
-                    } else {
-                        noDeadlineTasks.push(task);
-                    }
+                    // Apply project filter
+                    filteredTasks = currentProject === 'all' 
+                        ? tasks 
+                        : tasks.filter(task => task.project === currentProject);
+                    console.log('Filtered tasks (project filter):', filteredTasks.length, 'for project:', currentProject);
                 }
-            });
-            
-            renderCalendarSection('overdue-tasks', overdueTasks);
-            renderCalendarSection('today-tasks', todayTasks);
-            renderCalendarSection('upcoming-tasks', upcomingTasks);
-            renderCalendarSection('no-deadline-tasks', noDeadlineTasks);
-            
-            // Update counts
-            document.getElementById('overdue-count').textContent = overdueTasks.length || '';
-            document.getElementById('today-count').textContent = todayTasks.length || '';
-            document.getElementById('upcoming-count').textContent = upcomingTasks.length || '';
-            document.getElementById('no-deadline-count').textContent = noDeadlineTasks.length || '';
+                
+                filteredTasks.forEach(task => {
+                    console.log('Processing task:', task.title, 'deadline:', task.deadline);
+                    if (!task.deadline) {
+                        noDeadlineTasks.push(task);
+                    } else {
+                        const taskDate = new Date(task.deadline);
+                        taskDate.setHours(0, 0, 0, 0);
+                        
+                        if (taskDate < today && !task.completed) {
+                            console.log('-> Overdue task:', task.title);
+                            overdueTasks.push(task);
+                        } else if (taskDate.getTime() === today.getTime()) {
+                            console.log('-> Today task:', task.title);
+                            todayTasks.push(task);
+                        } else if (taskDate > today) {
+                            console.log('-> Upcoming task:', task.title);
+                            upcomingTasks.push(task);
+                        } else {
+                            console.log('-> No deadline task:', task.title);
+                            noDeadlineTasks.push(task);
+                        }
+                    }
+                });
+                
+                console.log('Calendar groups:', {
+                    overdue: overdueTasks.length,
+                    today: todayTasks.length,
+                    upcoming: upcomingTasks.length,
+                    noDeadline: noDeadlineTasks.length
+                });
+                
+                renderCalendarSection('overdue-tasks', overdueTasks);
+                renderCalendarSection('today-tasks', todayTasks);
+                renderCalendarSection('upcoming-tasks', upcomingTasks);
+                renderCalendarSection('no-deadline-tasks', noDeadlineTasks);
+                
+                // Update counts
+                document.getElementById('overdue-count').textContent = overdueTasks.length || '';
+                document.getElementById('today-count').textContent = todayTasks.length || '';
+                document.getElementById('upcoming-count').textContent = upcomingTasks.length || '';
+                document.getElementById('no-deadline-count').textContent = noDeadlineTasks.length || '';
+                
+                console.log('🗓️ Calendar view rendering completed');
+            } catch (error) {
+                console.error('🚫 Error in renderCalendarView:', error);
+                console.error('Stack trace:', error.stack);
+            }
         }
         
         function renderCalendarSection(containerId, tasks) {
+            console.log('📝 Rendering calendar section:', containerId, 'with', tasks.length, 'tasks');
             const container = document.getElementById(containerId);
+            
+            if (!container) {
+                console.error('Container not found:', containerId);
+                return;
+            }
+            
             container.innerHTML = '';
             
             tasks
                 .sort((a, b) => new Date(a.deadline || '9999-12-31') - new Date(b.deadline || '9999-12-31'))
                 .forEach(task => {
+                    console.log('Adding task to section:', task.title);
                     const taskEl = createTaskElement(task);
                     container.appendChild(taskEl);
                 });
+                
+            console.log('Section rendered:', containerId, 'contains', container.children.length, 'elements');
         }
         
         function renderAssigneesView() {
