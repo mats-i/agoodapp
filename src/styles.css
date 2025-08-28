@@ -1,4 +1,23 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+
+/* Roboto font utility as requested */
+.roboto-agoodapp {
+	font-family: "Roboto", sans-serif;
+	font-optical-sizing: auto;
+	font-weight: 400;
+	font-style: normal;
+	font-variation-settings: "wdth" 100;
+}
+
+/* Apply typography globally when the class is on body */
+.roboto-agoodapp, .roboto-agoodapp * {
+	font-family: "Roboto", sans-serif;
+	font-optical-sizing: auto;
+	font-style: normal;
+	font-variation-settings: "wdth" 100;
+	font-size: 15px !important;
+}
 
 /* Things 3–inspired look & feel */
 :root {
@@ -28,21 +47,33 @@ html, body {
 }
 
 /* Sidebar */
+/* Make sidebar blend with page (no card look); layout/spacing handled via utilities */
 .sidebar {
-	background: var(--surface);
-	border: 1px solid var(--border);
-	border-radius: 16px;
-	box-shadow: var(--shadow);
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
 }
 .app-container.collapsed {
-	grid-template-columns: 0 1fr !important;
+	grid-template-columns: 0 minmax(0,1fr) 0 !important;
 }
+
+/* When right panel is open, expand third column */
+.app-container.right-open {
+	grid-template-columns: 260px minmax(420px,1fr) 380px;
+}
+.app-container.collapsed.right-open {
+	grid-template-columns: 0 minmax(0,1fr) 380px !important;
+}
+
+/* Hide right panel unless explicitly opened */
+.app-container:not(.right-open) #right-panel { display: none; }
+.app-container.right-open #right-panel { display: block; }
 .app-container.collapsed #sidebar {
 	display: none !important;
 }
 .sidebar .project-item {
 	border-radius: 10px;
-	height: 36px;
+	/* let padding define height for better spacing */
 	display: flex;
 	align-items: center;
 	transition: background 160ms ease, color 160ms ease;
@@ -66,6 +97,18 @@ html, body {
 	color: var(--accent-700);
 }
 
+/* Add left padding to all icons in the sidebar */
+.sidebar .icon {
+	padding-left: 10px;
+}
+
+/* Add vertical spacing between sidebar items */
+.sidebar .project-list > .project-item,
+.sidebar .sidebar-tools > .project-item,
+.sidebar #saved-filters #filter-list > .filter-item {
+	margin-top: 8px;
+}
+
 /* Tabs */
 .tabs .tab {
 	border-radius: 10px;
@@ -82,11 +125,20 @@ html, body {
 }
 
 /* Cards & panels */
-.main-content, .filter-modal-content, .right-panel {
+/* Keep cards for modal and right panel; main-content should be flat white (no border/shadow) */
+.filter-modal-content, .right-panel {
 	background: var(--surface);
 	border: 1px solid var(--border);
 	border-radius: 16px;
 	box-shadow: var(--shadow);
+}
+
+/* Ensure main content area is flat (no border/shadow) but white background */
+.main-content {
+	background: #fff;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
 }
 
 /* Task items */
