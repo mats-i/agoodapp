@@ -216,6 +216,24 @@
                 </div>
             </div>
 
+            <!-- Simple logged in user section -->
+            <div id="sidebar-user-info" class="mt-4 pt-4 border-t border-gray-200" style="display:none;">
+                <div class="project-item flex items-center gap-2 px-3 py-2.5 rounded-md">
+                    <span class="flex items-center gap-2">
+                        <span class="icon">◯</span>
+                        <div class="flex flex-col min-w-0">
+                            <span class="name text-sm font-medium">Inloggad användare</span>
+                            <span id="sidebar-user-email" class="text-xs text-gray-500 truncate"></span>
+                        </div>
+                    </span>
+                </div>
+                <div class="px-3 mt-2">
+                    <button id="sidebar-logout-btn" class="text-xs text-red-600 hover:text-red-800 cursor-pointer">
+                        Logga ut
+                    </button>
+                </div>
+            </div>
+
             <!-- User dropdown footer -->
             <div class="mt-auto pt-4 border-t border-gray-200">
                 <div class="relative" id="user-dropdown" style="display:none;">
@@ -676,14 +694,18 @@
             try {
                 const user = session?.user || null;
                 const container = document.getElementById('user-dropdown');
+                const sidebarUserInfo = document.getElementById('sidebar-user-info');
+                
                 if (!user) {
                     if (container) container.style.display = 'none';
+                    if (sidebarUserInfo) sidebarUserInfo.style.display = 'none';
                     return;
                 }
                 const email = user?.email || '';
                 const name = user?.user_metadata?.name || user?.user_metadata?.full_name || (user ? (email.split('@')[0] || '') : '');
                 const avatar = (name?.[0] || 'G').toUpperCase();
 
+                // Update original user dropdown
                 const nameEl = document.getElementById('user-name');
                 const emailEl = document.getElementById('user-email');
                 const avatarEl = document.getElementById('user-avatar');
@@ -691,6 +713,11 @@
                 if (emailEl) emailEl.textContent = email;
                 if (avatarEl) avatarEl.textContent = avatar;
                 if (container) container.style.display = '';
+
+                // Update sidebar user info
+                const sidebarEmailEl = document.getElementById('sidebar-user-email');
+                if (sidebarEmailEl) sidebarEmailEl.textContent = email;
+                if (sidebarUserInfo) sidebarUserInfo.style.display = '';
 
                 const logoutBtn = document.getElementById('logout-dropdown-btn');
                 if (logoutBtn) {
@@ -734,7 +761,23 @@
                         try {
                             const origin = window.location.origin || '';
                             const isHttp = /^https?:/i.test(origin);
+                            
+                            // Check if we're in VS Code Simple Browser (limited OAuth support)
+                            const isVSCodeBrowser = /vscode/i.test(navigator.userAgent) || 
+                                                   window.parent !== window || 
+                                                   !window.open;
+                            
+                            if (isVSCodeBrowser) {
+                                // Open OAuth in external browser
+                                const authUrl = `https://tazwiywfzpmyqbmmkhpc.supabase.co/auth/v1/authorize?provider=github&redirect_to=${encodeURIComponent(origin)}`;
+                                console.log('Opening GitHub OAuth in external browser:', authUrl);
+                                alert('OAuth öppnas i din standardwebbläsare. Efter inloggning kommer du tillbaka hit automatiskt.');
+                                window.open(authUrl, '_blank');
+                                return;
+                            }
+                            
                             const options = isHttp ? { redirectTo: origin } : {};
+                            console.log('GitHub OAuth attempt with origin:', origin, 'options:', options);
                             await supabaseClient.auth.signInWithOAuth({ provider: 'github', options });
                         } catch (e) {
                             const msg = e?.message || String(e);
@@ -759,7 +802,23 @@
                         try {
                             const origin = window.location.origin || '';
                             const isHttp = /^https?:/i.test(origin);
+                            
+                            // Check if we're in VS Code Simple Browser (limited OAuth support)
+                            const isVSCodeBrowser = /vscode/i.test(navigator.userAgent) || 
+                                                   window.parent !== window || 
+                                                   !window.open;
+                            
+                            if (isVSCodeBrowser) {
+                                // Open OAuth in external browser
+                                const authUrl = `https://tazwiywfzpmyqbmmkhpc.supabase.co/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(origin)}`;
+                                console.log('Opening Google OAuth in external browser:', authUrl);
+                                alert('OAuth öppnas i din standardwebbläsare. Efter inloggning kommer du tillbaka hit automatiskt.');
+                                window.open(authUrl, '_blank');
+                                return;
+                            }
+                            
                             const options = isHttp ? { redirectTo: origin } : {};
+                            console.log('Google OAuth attempt with origin:', origin, 'options:', options);
                             await supabaseClient.auth.signInWithOAuth({ provider: 'google', options });
                         } catch (e) {
                             const msg = e?.message || String(e);
@@ -780,7 +839,31 @@
             // Session check and auth state subscription
         supabaseClient.auth.getSession().then(({ data }) => {
                 const session = data?.session || null;
-                if (session) {
+                
+                // Check for URL parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                const forceLogin = urlParams.get('login') === 'true';
+                const forceLogout = urlParams.get('logout') === 'true';
+                
+                if (forceLogout && session) {
+                    // Force logout and show login
+                    logoutUser().then(() => {
+                        hideLoading();
+                        showLogin();
+                    });
+                    // Clear the parameter from URL without page reload
+                    const url = new URL(window.location);
+                    url.searchParams.delete('logout');
+                    window.history.replaceState({}, '', url);
+                } else if (forceLogin) {
+                    // Force show login even if there's a session
+                    hideLoading();
+                    showLogin();
+                    // Clear the parameter from URL without page reload
+                    const url = new URL(window.location);
+                    url.searchParams.delete('login');
+                    window.history.replaceState({}, '', url);
+                } else if (session) {
             hideLoading();
                     hideLogin();
                     detectUserIdColumn();
@@ -853,9 +936,8 @@
                 useSupabase = true;
                 updateStatusIndicator();
                 
-                // Load tasks from Supabase
-                // Only load here if not already gated elsewhere
-                if (!REQUIRE_AUTH) loadTasks();
+                // Load tasks from Supabase - always require auth now
+                // Tasks will be loaded via auth state change handler
             } catch (error) {
                 const msg = error?.message || String(error);
                 console.log('Supabase connection failed:', msg);
@@ -867,11 +949,9 @@
                     showLogin();
                     return;
                 }
-                // When auth is required, do not fallback to local
-                if (!REQUIRE_AUTH) {
-                    // Load from localStorage as fallback
-                    loadTasks();
-                }
+                // When auth is required (which it always is now), show login
+                showLogin();
+                return;
             }
         }
         
@@ -881,13 +961,8 @@
                 indicator.textContent = isOnline ? '🌐 Supabase Connected' : '🛜 Offline (queueing)';
                 indicator.className = 'status-indicator';
             } else {
-                if (REQUIRE_AUTH) {
-                    indicator.textContent = '🔒 Sign in required';
-                    indicator.className = 'status-indicator local';
-                } else {
-                indicator.textContent = '◦ Local Mode';
+                indicator.textContent = '🔒 Sign in required';
                 indicator.className = 'status-indicator local';
-                }
             }
             
             // Auto-hide only if not sticky
@@ -2637,9 +2712,8 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM loaded, initializing app...'); // Debug
             
-            if (!REQUIRE_AUTH) {
-                loadTasks();
-            }
+            // Tasks will now only be loaded after authentication
+            // via the auth state change handler
             loadSavedFilters();
             // Wire logout button
             // Logout lives in the user dropdown footer
@@ -2673,6 +2747,15 @@
                         await logoutUser();
                         if (menuItems) menuItems.classList.add('hidden');
                         menuBtn?.setAttribute('aria-expanded', 'false');
+                    });
+                }
+
+                // Wire sidebar logout button
+                const sidebarLogoutBtn = document.getElementById('sidebar-logout-btn');
+                if (sidebarLogoutBtn && !sidebarLogoutBtn._wired) {
+                    sidebarLogoutBtn._wired = true;
+                    sidebarLogoutBtn.addEventListener('click', async () => {
+                        await logoutUser();
                     });
                 }
 
@@ -2726,10 +2809,37 @@
             
             console.log('App initialization completed'); // Debug
 
+            // Always show login screen initially - authentication is required
+            showLogin();
+
             // Apply initial active styles
             applyProjectActiveStyles();
             applyFilterActiveStyles();
             applyTabActiveStyles();
+
+            // Mobile optimization: auto-collapse sidebar on mobile devices
+            handleMobileLayout();
+        });
+
+        // Mobile layout handler
+        function handleMobileLayout() {
+            const isMobile = window.innerWidth <= 768;
+            const app = document.getElementById('app');
+            
+            if (isMobile && app && !app.classList.contains('collapsed')) {
+                app.classList.add('collapsed');
+                
+                // Update hamburger button aria-expanded
+                const btn = document.querySelector('.hamburger-btn');
+                if (btn) {
+                    btn.setAttribute('aria-expanded', 'false');
+                }
+            }
+        }
+
+        // Add resize listener to handle orientation changes
+        window.addEventListener('resize', function() {
+            handleMobileLayout();
         });
 
         // Theme toggle handler
