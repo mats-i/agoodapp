@@ -1,0 +1,15 @@
+{
+  "platform": "macos",
+  "name": "AGoodApp",
+  "version": "0.1.1",
+  "build": "2",
+  "bundleId": "se.agoodapp.mac",
+  "minimumMacOSVersion": "14.0",
+  "fileName": "AGoodApp-0.1.1.dmg",
+  "downloadURL": "https://agoodapp.se/downloads/macos/AGoodApp-0.1.1.dmg",
+  "sha256": "aa54b159c9a0aef59626e059c04eba7cd724b19512f1548340a37ae14415a125",
+  "sizeBytes": 2642378,
+  "releaseMode": "public",
+  "createdAt": "2026-05-05T14:44:24Z",
+  "releaseNotes": "Mac update 0.1.1\n- Cmd+K skickas nu till PWA-command palette med native fallback.\n- Förbereder appens inbyggda uppdateringsflöde med bumpad Mac-build."
+}
