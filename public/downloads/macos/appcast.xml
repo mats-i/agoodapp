@@ -1,0 +1,14 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>AGoodApp</title>
+        <item>
+            <title>0.1.2</title>
+            <pubDate>Wed, 06 May 2026 14:20:42 +0200</pubDate>
+            <sparkle:version>3</sparkle:version>
+            <sparkle:shortVersionString>0.1.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://agoodapp.se/downloads/macos/AGoodApp-0.1.2.dmg" length="3632070" type="application/octet-stream" sparkle:edSignature="9HDBlSVKx2ggwIsu3VxQE0Mp9NU8lg2Jk+7r9Z9hvp18+WPVfdYOGEc9/RA2TukENVqQofEILgCKH3CGpwbrCw=="/>
+        </item>
+    </channel>
+</rss>

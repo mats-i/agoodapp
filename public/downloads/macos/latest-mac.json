@@ -7,9 +7,9 @@
   "minimumMacOSVersion": "14.0",
   "fileName": "AGoodApp-0.1.2.dmg",
   "downloadURL": "https://agoodapp.se/downloads/macos/AGoodApp-0.1.2.dmg",
-  "sha256": "0f82f07e0136df0faf5d5d935b8f86fe7b026e968e0eff924fb16e66aae990c2",
-  "sizeBytes": 2623479,
+  "sha256": "b7e06c015c3faf7669ea6c0b4f0ec354fff3c1d1d7e4951a36c656050de3b019",
+  "sizeBytes": 3632070,
   "releaseMode": "public",
-  "createdAt": "2026-05-06T07:10:28Z",
-  "releaseNotes": "AGoodApp Mac 0.1.2 improves hybrid routing and release update support."
+  "createdAt": "2026-05-06T12:21:22Z",
+  "releaseNotes": ""
 }
