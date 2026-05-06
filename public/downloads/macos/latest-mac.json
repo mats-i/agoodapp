@@ -1,15 +1,15 @@
 {
   "platform": "macos",
   "name": "AGoodApp",
-  "version": "0.1.1",
-  "build": "2",
+  "version": "0.1.2",
+  "build": "3",
   "bundleId": "se.agoodapp.mac",
   "minimumMacOSVersion": "14.0",
-  "fileName": "AGoodApp-0.1.1.dmg",
-  "downloadURL": "https://agoodapp.se/downloads/macos/AGoodApp-0.1.1.dmg",
-  "sha256": "aa54b159c9a0aef59626e059c04eba7cd724b19512f1548340a37ae14415a125",
-  "sizeBytes": 2642378,
+  "fileName": "AGoodApp-0.1.2.dmg",
+  "downloadURL": "https://agoodapp.se/downloads/macos/AGoodApp-0.1.2.dmg",
+  "sha256": "0f82f07e0136df0faf5d5d935b8f86fe7b026e968e0eff924fb16e66aae990c2",
+  "sizeBytes": 2623479,
   "releaseMode": "public",
-  "createdAt": "2026-05-05T14:44:24Z",
-  "releaseNotes": "Mac update 0.1.1\n- Cmd+K skickas nu till PWA-command palette med native fallback.\n- Förbereder appens inbyggda uppdateringsflöde med bumpad Mac-build."
+  "createdAt": "2026-05-06T07:10:28Z",
+  "releaseNotes": "AGoodApp Mac 0.1.2 improves hybrid routing and release update support."
 }
